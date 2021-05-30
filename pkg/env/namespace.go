@@ -1,6 +1,7 @@
 package env
 
 import (
+	"sort"
 	"sync"
 	"time"
 
@@ -59,6 +60,8 @@ func (ns *ns) Peers() discover.InfoSlice {
 	defer ns.mu.RUnlock()
 
 	is := make(discover.InfoSlice, 0, len(ns.rs))
+	defer sort.Sort(is) // ensure reproducibility
+
 	for _, rec := range ns.rs {
 		is = append(is, rec.info)
 	}

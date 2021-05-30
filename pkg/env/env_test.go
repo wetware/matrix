@@ -28,7 +28,6 @@ func TestEnv(t *testing.T) {
 
 	require.NotNil(t, e.Clock())
 	require.NotNil(t, e.Network())
-	require.NotNil(t, e.Process())
 
 	t.Run("NewDiscovery", func(t *testing.T) {
 		t.Parallel()

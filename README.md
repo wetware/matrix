@@ -57,6 +57,8 @@ But there's more!  Just like Testground, Matrix provides support for sophisticat
 
 ## Usage
 
+The following example can be found under `examples/basic`.  See the examples directory for more.
+
 ```go
 // TODO
 ```

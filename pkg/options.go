@@ -1,13 +1,18 @@
 package matrix
 
-import "github.com/wetware/matrix/pkg/env"
+import (
+	"context"
+
+	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p/config"
+)
 
 // Option for simulation.
 type Option func(*Config) error
 
 // Config is a general-purpose container for configuration.
 type Config struct {
-	env   Env
 	other map[interface{}]interface{}
 }
 
@@ -37,22 +42,27 @@ func (c *Config) GetCustom(k interface{}) (v interface{}, ok bool) {
 	return
 }
 
-// WithEnv sets the simulation environment.
-//
-// If env == nil, the default global environment is used.
-func WithEnv(e Env) Option {
-	if e == nil {
-		e = env.Global()
-	}
+func (c *Config) newHost(ctx context.Context, env Env) (host.Host, error) {
+	opt, _ := c.other[keyHostOpt].([]libp2p.Option)
+	return libp2p.New(ctx, c.hostopt(ctx, env, opt)...)
+}
 
-	return func(c *Config) error {
-		c.env = e
-		return nil
-	}
+func (c *Config) hostopt(ctx context.Context, env Env, opt []libp2p.Option) []config.Option {
+	return append([]config.Option{
+		transport(ctx, env.Network()),
+		libp2p.NoListenAddrs,
+		libp2p.ListenAddrStrings("/inproc/~"),
+	}, opt...)
 }
 
 func withDefault(opt []Option) []Option {
 	return append([]Option{
-		WithEnv(nil),
+		// ...
 	}, opt...)
 }
+
+type key uint8
+
+const (
+	keyHostOpt key = iota
+)
