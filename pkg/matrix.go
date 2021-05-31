@@ -3,57 +3,101 @@ package matrix
 import (
 	"context"
 
-	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p/config"
-	inproc "github.com/lthibault/go-libp2p-inproc-transport"
 	"github.com/wetware/matrix/pkg/discover"
-	"github.com/wetware/matrix/pkg/env"
+	"golang.org/x/sync/errgroup"
 )
 
-type Env interface {
-	Clock() *env.Clock
-	Network() inproc.Env
-	NewHost(ctx context.Context, opt ...Option) (host.Host, error)
-	MustHost(ctx context.Context, opt ...Option) host.Host
-	NewDiscovery(info peer.AddrInfo, s discover.Strategy) discovery.Discovery
-	Call(OpFunc) Op
+type (
+	HostSlice []host.Host
+
+	MapFunc    func(ctx context.Context, env Env, i int, h host.Host) error
+	SelectFunc func(ctx context.Context, env Env, hs HostSlice) (HostSlice, error)
+
+	FilterFunc func(int, host.Host) bool
+)
+
+func Map(f MapFunc) OpFunc {
+	return mapper(func(hs HostSlice, hf func(MapFunc) func(int, host.Host) error) error {
+		return hs.Map(hf(f))
+	})
 }
 
-type environment struct{ *env.Env }
-
-func New(ctx context.Context) Env { return environment{env.New(ctx)} }
-
-func (env environment) Call(f OpFunc) Op {
-	return Op{env: env, f: f}
+func Go(f MapFunc) OpFunc {
+	return mapper(func(hs HostSlice, hf func(MapFunc) func(int, host.Host) error) error {
+		return hs.Go(hf(f))
+	})
 }
 
-// NewHost returns a new host with a random identity and the default
-// in-process transport.
-func (env environment) NewHost(ctx context.Context, opt ...Option) (host.Host, error) {
-	cfg, err := options(opt)
-	if err != nil {
-		return nil, err
+func Select(f SelectFunc) OpFunc {
+	return func(env Env) func(ctx context.Context) Maybe {
+		return func(ctx context.Context) Maybe {
+			return func(hs HostSlice) (HostSlice, error) {
+				return f(ctx, env, hs)
+			}
+		}
 	}
-
-	return cfg.newHost(ctx, env)
 }
 
-// MustHost returns a host or panics if an error was encountered.
-func (env environment) MustHost(ctx context.Context, opt ...Option) host.Host {
-	h, err := env.NewHost(ctx, opt...)
-	must(err)
-	return h
+func Filter(f FilterFunc) OpFunc {
+	return Select(func(ctx context.Context, env Env, hs HostSlice) (HostSlice, error) {
+		sel := hs[:0]
+		for i, h := range hs {
+			if f(i, h) {
+				sel = append(sel, h)
+			}
+		}
+		return sel, nil
+	})
 }
 
-func transport(ctx context.Context, e inproc.Env) config.Option {
-	return libp2p.Transport(inproc.New(inproc.WithEnv(e)))
+func Announce(s discover.Strategy, ns string, opt ...discovery.Option) OpFunc {
+	return Go(func(ctx context.Context, env Env, i int, h host.Host) error {
+		var d = env.NewDiscovery(*host.InfoFromHost(h), s)
+		_, err := d.Advertise(ctx, ns, opt...)
+		return err
+	})
 }
 
-func must(err error) {
-	if err != nil {
-		panic(err)
+func Discover(s discover.Strategy, ns string, opt ...discovery.Option) OpFunc {
+	return Go(func(ctx context.Context, env Env, i int, h host.Host) (err error) {
+		var (
+			d  = env.NewDiscovery(*host.InfoFromHost(h), s)
+			g  errgroup.Group
+			ps <-chan peer.AddrInfo
+		)
+
+		if ps, err = d.FindPeers(ctx, ns, opt...); err != nil {
+			return err
+		}
+
+		for info := range ps {
+			if info.ID != h.ID() {
+				g.Go(connect(ctx, h, info))
+			}
+		}
+		return g.Wait()
+	})
+}
+
+func connect(ctx context.Context, h host.Host, info peer.AddrInfo) func() error {
+	return func() error {
+		return h.Connect(ctx, info)
+	}
+}
+
+func mapper(f func(hs HostSlice, hf func(MapFunc) func(int, host.Host) error) error) OpFunc {
+	return func(env Env) func(ctx context.Context) Maybe {
+		return func(ctx context.Context) Maybe {
+			return func(hs HostSlice) (HostSlice, error) {
+				return hs, f(hs, func(mf MapFunc) func(int, host.Host) error {
+					return func(i int, h host.Host) error {
+						return mf(ctx, env, i, h)
+					}
+				})
+			}
+		}
 	}
 }
