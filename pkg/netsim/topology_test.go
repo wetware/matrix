@@ -1,14 +1,17 @@
-package netsim
+package netsim_test
 
 import (
 	"context"
 	"math/rand"
+	"sort"
 	"testing"
 
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/require"
+	"github.com/wetware/matrix/internal/testutil"
 	"github.com/wetware/matrix/pkg/clock"
+	"github.com/wetware/matrix/pkg/netsim"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -18,8 +21,8 @@ func TestTopology(t *testing.T) {
 
 	var (
 		p     = newTestNs(clock.New(), "", n)
-		ns    = p.LoadOrCreate("")
-		local = randinfo()
+		s     = p.LoadOrCreate("")
+		local = testutil.RandInfo()
 	)
 
 	t.Run("SelectAll", func(t *testing.T) {
@@ -31,15 +34,15 @@ func TestTopology(t *testing.T) {
 
 			const limit = 5
 
-			var s SelectAll
+			var topo netsim.SelectAll
 
-			as, err := run(ns, s, local, discovery.Limit(limit))
+			as, err := run(s, topo, local, discovery.Limit(limit))
 			require.NoError(t, err)
 
-			require.Subset(t, ns.Peers(), as)
+			require.Subset(t, s.Peers(), as)
 			require.Len(t, as, limit)
 
-			peers := defaultLoader{}.load(ns, local)
+			peers := load(s, local)
 			require.NotContains(t, peers, local)
 			require.Equal(t, peers[:limit], as)
 		})
@@ -52,11 +55,11 @@ func TestTopology(t *testing.T) {
 		t.Run("GlobalSource", func(t *testing.T) {
 			t.Parallel()
 
-			var s SelectRandom
-			ps, err := run(ns, &s, local)
+			var topo netsim.SelectRandom
+			ps, err := run(s, &topo, local)
 			require.NoError(t, err)
 
-			peers := defaultLoader{}.load(ns, local)
+			peers := load(s, local)
 			require.NotContains(t, peers, local)
 			require.ElementsMatch(t, peers, ps)
 		})
@@ -64,12 +67,12 @@ func TestTopology(t *testing.T) {
 		t.Run("Reproducible", func(t *testing.T) {
 			t.Parallel()
 
-			as0, err := run(ns, &SelectRandom{
+			as0, err := run(s, &netsim.SelectRandom{
 				Src: rand.NewSource(42),
 			}, local)
 			require.NoError(t, err)
 
-			as1, err := run(ns, &SelectRandom{
+			as1, err := run(s, &netsim.SelectRandom{
 				Src: rand.NewSource(42),
 			}, local)
 			require.NoError(t, err)
@@ -83,8 +86,8 @@ func TestTopology(t *testing.T) {
 		t.Parallel()
 
 		var (
-			peers     = loadAllPeers(ns)
-			neighbors = make(InfoSlice, len(peers))
+			peers     = loadAllPeers(s)
+			neighbors = make(netsim.InfoSlice, len(peers))
 		)
 
 		/*
@@ -96,9 +99,9 @@ func TestTopology(t *testing.T) {
 		for i, info := range peers {
 			g.Go(func(i int, info *peer.AddrInfo) func() error {
 				return func() (err error) {
-					var as InfoSlice
+					var as netsim.InfoSlice
 
-					if as, err = run(ns, &SelectRing{}, info); err == nil {
+					if as, err = run(s, &netsim.SelectRing{}, info); err == nil {
 						neighbors[i] = as[0]
 					}
 
@@ -114,7 +117,7 @@ func TestTopology(t *testing.T) {
 	})
 }
 
-func run(ns Namespace, topo Topology, info *peer.AddrInfo, opt ...discovery.Option) (InfoSlice, error) {
+func run(s netsim.Scope, topo netsim.Topology, info *peer.AddrInfo, opt ...discovery.Option) (netsim.InfoSlice, error) {
 	opts := newOption()
 	if err := topo.SetDefaultOptions(opts); err != nil {
 		return nil, err
@@ -135,13 +138,20 @@ func run(ns Namespace, topo Topology, info *peer.AddrInfo, opt ...discovery.Opti
 		}
 	}
 
-	return topo.Select(context.Background(), ns, info, opts)
+	return topo.Select(context.Background(), s, info, opts)
 }
 
 func newOption() *discovery.Options {
 	return &discovery.Options{Other: make(map[interface{}]interface{})}
 }
 
-func loadAllPeers(ns Namespace) InfoSlice {
-	return defaultLoader{}.load(ns, new(peer.AddrInfo))
+func loadAllPeers(s netsim.Scope) netsim.InfoSlice {
+	return load(s, new(peer.AddrInfo))
+}
+
+func load(ps interface{ Peers() netsim.InfoSlice }, local *peer.AddrInfo) netsim.InfoSlice {
+	is := ps.Peers()
+	sort.Sort(is)
+	return is.
+		Filter(func(info *peer.AddrInfo) bool { return info.ID != local.ID })
 }

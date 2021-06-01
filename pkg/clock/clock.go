@@ -103,7 +103,7 @@ func (c *Clock) add(node *timeNode, tick uint64) *timeNode {
 	return node
 }
 
-func (c *Clock) After(d time.Duration, callback func()) CancelFunc {
+func (c *Clock) After(d time.Duration, callback func()) (cancel func()) {
 	tick := atomic.LoadUint64(&c.tick)
 
 	node := &timeNode{
@@ -118,7 +118,7 @@ func (c *Clock) getExpire(expire time.Duration, tick uint64) time.Duration {
 	return expire/c.accuracy + time.Duration(tick)
 }
 
-func (c *Clock) Ticker(userExpire time.Duration, callback func()) CancelFunc {
+func (c *Clock) Ticker(userExpire time.Duration, callback func()) (cancel func()) {
 	tick := atomic.LoadUint64(&c.tick)
 
 	node := &timeNode{

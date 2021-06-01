@@ -13,32 +13,6 @@ var nopchan = make(chan peer.AddrInfo)
 
 func init() { close(nopchan) }
 
-type Namespace interface {
-	Peers() InfoSlice
-	Upsert(*peer.AddrInfo, *discovery.Options) time.Duration
-}
-
-type NamespaceProvider interface {
-	Load(ns string) (Namespace, bool)
-	LoadOrCreate(ns string) Namespace
-}
-
-type InfoSlice []*peer.AddrInfo
-
-func (is InfoSlice) Len() int           { return len(is) }
-func (is InfoSlice) Less(i, j int) bool { return is[i].ID < is[j].ID }
-func (is InfoSlice) Swap(i, j int)      { is[i], is[j] = is[j], is[i] }
-
-func (is InfoSlice) Filter(f func(info *peer.AddrInfo) bool) InfoSlice {
-	filt := make(InfoSlice, 0, len(is))
-	for _, info := range is {
-		if f(info) {
-			filt = append(filt, info)
-		}
-	}
-	return filt
-}
-
 const DefaultTTL = time.Hour * 24
 
 type DiscoveryService struct {

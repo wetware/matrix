@@ -1,4 +1,4 @@
-package netsim
+package namespace
 
 import (
 	"sync"
@@ -6,42 +6,46 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/wetware/matrix/pkg/clock"
+	"github.com/wetware/matrix/pkg/netsim"
 )
 
-type nsMap struct {
+type Timer interface {
+	After(d time.Duration, callback func()) (cancel func())
+}
+
+type Provider struct {
 	mu sync.RWMutex
-	m  map[string]Namespace
+	m  map[string]netsim.Scope
 	t  Timer
 }
 
-func nsmap(t Timer) *nsMap {
-	return &nsMap{m: make(map[string]Namespace), t: t}
+func New(t Timer) *Provider {
+	return &Provider{m: make(map[string]netsim.Scope), t: t}
 }
 
-func (nm *nsMap) LoadOrCreate(name string) Namespace {
-	nm.mu.RLock()
-	ns, ok := nm.Load(name)
-	nm.mu.RUnlock()
+func (p *Provider) LoadOrCreate(name string) netsim.Scope {
+	p.mu.RLock()
+	ns, ok := p.Load(name)
+	p.mu.RUnlock()
 
 	if !ok { // slow path
-		nm.mu.Lock()
-		defer nm.mu.Unlock()
+		p.mu.Lock()
+		defer p.mu.Unlock()
 
 		// may have been added concurrently
-		if ns, ok = nm.m[name]; !ok {
-			ns = namespace(nm.t)
-			nm.m[name] = ns
+		if ns, ok = p.m[name]; !ok {
+			ns = p.namespace()
+			p.m[name] = ns
 		}
 	}
 
 	return ns
 }
 
-func (nm *nsMap) Load(name string) (ns Namespace, ok bool) {
-	nm.mu.RLock()
-	ns, ok = nm.m[name]
-	nm.mu.RUnlock()
+func (p *Provider) Load(name string) (ns netsim.Scope, ok bool) {
+	p.mu.RLock()
+	ns, ok = p.m[name]
+	p.mu.RUnlock()
 	return
 }
 
@@ -51,15 +55,15 @@ type ns struct {
 	t  Timer
 }
 
-func namespace(t Timer) *ns {
-	return &ns{rs: make(map[peer.ID]*nsRecord), t: t}
+func (p *Provider) namespace() *ns {
+	return &ns{rs: make(map[peer.ID]*nsRecord), t: p.t}
 }
 
-func (ns *ns) Peers() InfoSlice {
+func (ns *ns) Peers() netsim.InfoSlice {
 	ns.mu.RLock()
 	defer ns.mu.RUnlock()
 
-	is := make(InfoSlice, 0, len(ns.rs))
+	is := make(netsim.InfoSlice, 0, len(ns.rs))
 	for _, rec := range ns.rs {
 		is = append(is, rec.info)
 	}
@@ -90,10 +94,10 @@ func (ns *ns) insert(info *peer.AddrInfo, opts *discovery.Options) time.Duration
 
 type nsRecord struct {
 	info   *peer.AddrInfo
-	cancel clock.CancelFunc
+	cancel func()
 }
 
-func record(info *peer.AddrInfo, cancel clock.CancelFunc) *nsRecord {
+func record(info *peer.AddrInfo, cancel func()) *nsRecord {
 	return &nsRecord{
 		info:   info,
 		cancel: cancel,

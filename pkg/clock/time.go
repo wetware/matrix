@@ -9,12 +9,7 @@ import (
 	"github.com/antlabs/stl/list"
 )
 
-const (
-	haveStop = uint32(1)
-)
-
-// CancelFunc aborts a scheduled task.
-type CancelFunc func()
+const haveStop = uint32(1)
 
 // First use sync.Mutex to implement the function
 // Use cas optimization later

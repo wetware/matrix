@@ -1,26 +1,21 @@
-package netsim
+package netsim_test
 
 import (
 	"context"
 	"errors"
-	"fmt"
-	"math/rand"
 	"testing"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/peer"
-	inproc "github.com/lthibault/go-libp2p-inproc-transport"
-	"github.com/mr-tron/base58"
-	"github.com/multiformats/go-multiaddr"
-	"github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/require"
+	"github.com/wetware/matrix/internal/testutil"
 	"github.com/wetware/matrix/pkg/clock"
+	"github.com/wetware/matrix/pkg/namespace"
+	"github.com/wetware/matrix/pkg/netsim"
 )
 
 const n = 10
-
-var t0 = time.Date(2021, 04, 9, 8, 0, 0, 0, time.UTC)
 
 func TestAdvertise(t *testing.T) {
 	t.Parallel()
@@ -32,10 +27,10 @@ func TestAdvertise(t *testing.T) {
 	t.Run("BadOptionFails", func(t *testing.T) {
 		t.Parallel()
 
-		d := DiscoveryService{
-			NS:   nsmap(clock.New()),
-			Topo: SelectAll{},
-			Info: randinfo(),
+		d := netsim.DiscoveryService{
+			NS:   namespace.New(clock.New()),
+			Topo: netsim.SelectAll{},
+			Info: testutil.RandInfo(),
 		}
 		ttl, err := d.Advertise(context.Background(), "",
 			func(*discovery.Options) error { return errors.New("test") })
@@ -46,74 +41,47 @@ func TestAdvertise(t *testing.T) {
 	t.Run("DefaultTTL", func(t *testing.T) {
 		t.Parallel()
 
-		c := clock.New()
-		c.Advance(t0)
-
-		ns := nsmap(c)
-		p := randinfo()
-		d := DiscoveryService{
+		ns := namespace.New(clock.New())
+		pi := testutil.RandInfo()
+		d := netsim.DiscoveryService{
 			NS:   ns,
-			Topo: SelectAll{},
-			Info: p,
+			Topo: netsim.SelectAll{},
+			Info: pi,
 		}
 
-		t.Run("Advertise", func(t *testing.T) {
-			ttl, err := d.Advertise(ctx, "")
-			require.NoError(t, err)
-			require.Equal(t, DefaultTTL, ttl)
+		ttl, err := d.Advertise(ctx, "")
+		require.NoError(t, err)
+		require.Equal(t, netsim.DefaultTTL, ttl)
 
-			got := ns.LoadOrCreate("").
-				Peers().
-				Filter(func(info *peer.AddrInfo) bool { return info.ID == p.ID })
+		got := ns.LoadOrCreate("").
+			Peers().
+			Filter(func(info *peer.AddrInfo) bool { return info.ID == pi.ID })
 
-			require.ElementsMatch(t, InfoSlice{p}, got)
-		})
-
-		t.Run("Expire", func(t *testing.T) {
-			c.Advance(t0.Add(DefaultTTL + c.Accuracy()))
-
-			require.Eventually(t, func() bool {
-				return len(ns.LoadOrCreate("").Peers()) == 0
-			}, time.Millisecond*100, time.Millisecond*10,
-				"peer was not expired after %s", DefaultTTL)
-		})
+		require.ElementsMatch(t, netsim.InfoSlice{pi}, got)
 	})
 
 	t.Run("TTL=1000ms", func(t *testing.T) {
 		t.Parallel()
 
 		const customTTL = time.Second
-		c := clock.New()
-		c.Advance(t0)
 
-		ns := nsmap(c)
-		p := randinfo()
-		d := DiscoveryService{
+		ns := namespace.New(clock.New())
+		pi := testutil.RandInfo()
+		d := netsim.DiscoveryService{
 			NS:   ns,
-			Topo: SelectAll{},
-			Info: p,
+			Topo: netsim.SelectAll{},
+			Info: pi,
 		}
 
-		t.Run("Advertise", func(t *testing.T) {
-			ttl, err := d.Advertise(ctx, "", discovery.TTL(customTTL))
-			require.NoError(t, err)
-			require.Equal(t, customTTL, ttl)
+		ttl, err := d.Advertise(ctx, "", discovery.TTL(customTTL))
+		require.NoError(t, err)
+		require.Equal(t, customTTL, ttl)
 
-			got := ns.LoadOrCreate("").
-				Peers().
-				Filter(func(info *peer.AddrInfo) bool { return info.ID == p.ID })
+		got := ns.LoadOrCreate("").
+			Peers().
+			Filter(func(info *peer.AddrInfo) bool { return info.ID == pi.ID })
 
-			require.ElementsMatch(t, InfoSlice{p}, got)
-		})
-
-		t.Run("Expire", func(t *testing.T) {
-			c.Advance(t0.Add(customTTL + c.Accuracy()))
-
-			require.Eventually(t, func() bool {
-				return len(ns.LoadOrCreate("").Peers()) == 0
-			}, time.Millisecond*100, time.Millisecond*10,
-				"peer was not expired after %s", customTTL)
-		})
+		require.ElementsMatch(t, netsim.InfoSlice{pi}, got)
 	})
 }
 
@@ -124,10 +92,10 @@ func TestFindPeers(t *testing.T) {
 	t.Run("DefaultOptionErrorFails", func(t *testing.T) {
 		t.Parallel()
 
-		d := DiscoveryService{
-			NS:   nsmap(clock.New()),
+		d := netsim.DiscoveryService{
+			NS:   namespace.New(clock.New()),
 			Topo: failDefaultOptions{},
-			Info: randinfo(),
+			Info: testutil.RandInfo(),
 		}
 		peers, err := d.FindPeers(context.Background(), "")
 		require.EqualError(t, err, "test")
@@ -137,10 +105,10 @@ func TestFindPeers(t *testing.T) {
 	t.Run("BadOptionFails", func(t *testing.T) {
 		t.Parallel()
 
-		d := DiscoveryService{
-			NS:   nsmap(clock.New()),
-			Topo: SelectAll{},
-			Info: randinfo(),
+		d := netsim.DiscoveryService{
+			NS:   namespace.New(clock.New()),
+			Topo: netsim.SelectAll{},
+			Info: testutil.RandInfo(),
 		}
 		peers, err := d.FindPeers(context.Background(), "",
 			func(*discovery.Options) error { return errors.New("test") })
@@ -151,10 +119,10 @@ func TestFindPeers(t *testing.T) {
 	t.Run("ValidationErrorFails", func(t *testing.T) {
 		t.Parallel()
 
-		d := DiscoveryService{
-			NS:   nsmap(clock.New()),
+		d := netsim.DiscoveryService{
+			NS:   namespace.New(clock.New()),
 			Topo: failValidaton{},
-			Info: randinfo(),
+			Info: testutil.RandInfo(),
 		}
 		peers, err := d.FindPeers(context.Background(), "")
 		require.EqualError(t, err, "test")
@@ -170,10 +138,10 @@ func TestFindPeers(t *testing.T) {
 
 			ns := newTestNs(clock.New(), "", n)
 
-			d := DiscoveryService{
+			d := netsim.DiscoveryService{
 				NS:   ns,
-				Topo: SelectAll{},
-				Info: randinfo(),
+				Topo: netsim.SelectAll{},
+				Info: testutil.RandInfo(),
 			}
 
 			peers, err := d.FindPeers(context.Background(), "")
@@ -184,10 +152,10 @@ func TestFindPeers(t *testing.T) {
 		t.Run("NoPeers", func(t *testing.T) {
 			t.Parallel()
 
-			d := DiscoveryService{
-				NS:   nsmap(clock.New()),
-				Topo: SelectAll{},
-				Info: randinfo(),
+			d := netsim.DiscoveryService{
+				NS:   namespace.New(clock.New()),
+				Topo: netsim.SelectAll{},
+				Info: testutil.RandInfo(),
 			}
 
 			peers, err := d.FindPeers(context.Background(), "")
@@ -197,67 +165,21 @@ func TestFindPeers(t *testing.T) {
 	})
 }
 
-func newTestNs(t Timer, ns string, n int) NamespaceProvider {
-	p := nsmap(t)
+func newTestNs(t namespace.Timer, name string, n int) netsim.NamespaceProvider {
+	ns := namespace.New(t)
 	for i := 0; i < n; i++ {
-		p.LoadOrCreate(ns).Upsert(randinfo(), &discovery.Options{Ttl: DefaultTTL})
+		ns.LoadOrCreate(name).Upsert(testutil.RandInfo(), &discovery.Options{Ttl: netsim.DefaultTTL})
 	}
-	return p
+	return ns
 }
 
-func randinfo() *peer.AddrInfo {
-	id := randID()
-	return &peer.AddrInfo{
-		ID:    id,
-		Addrs: []multiaddr.Multiaddr{newAddr(id)},
-	}
-}
-
-func newAddr(id peer.ID) multiaddr.Multiaddr {
-	ma, err := inproc.ResolveString("/inproc/~")
-	if err != nil {
-		panic(err)
-	}
-
-	return ma.Encapsulate(multiaddr.StringCast(fmt.Sprintf("/p2p/%s", id)))
-}
-
-func randID() peer.ID {
-	return newID(randStr(5))
-}
-
-func randStr(n int) string {
-	const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = rune(alphabet[rand.Intn(len(alphabet))])
-	}
-
-	return string(b)
-}
-
-func hash(b []byte) []byte {
-	h, _ := multihash.Sum(b, multihash.SHA2_256, -1)
-	return []byte(h)
-}
-
-func newID(s string) peer.ID {
-	id, err := peer.Decode(base58.Encode(hash([]byte(s))))
-	if err != nil {
-		panic(err)
-	}
-
-	return id
-}
-
-type failValidaton struct{ SelectAll }
+type failValidaton struct{ netsim.SelectAll }
 
 func (failValidaton) Validate(*discovery.Options) error {
 	return errors.New("test")
 }
 
-type failDefaultOptions struct{ SelectAll }
+type failDefaultOptions struct{ netsim.SelectAll }
 
 func (failDefaultOptions) SetDefaultOptions(*discovery.Options) error {
 	return errors.New("test")

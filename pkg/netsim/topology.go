@@ -13,7 +13,7 @@ import (
 // Topology selects peeers from the environment.
 type Topology interface {
 	SetDefaultOptions(*discovery.Options) error
-	Select(context.Context, Namespace, *peer.AddrInfo, *discovery.Options) (InfoSlice, error)
+	Select(context.Context, Scope, *peer.AddrInfo, *discovery.Options) (InfoSlice, error)
 }
 
 type SelectAll struct{ defaultLoader }
@@ -26,14 +26,14 @@ func (SelectAll) SetDefaultOptions(opts *discovery.Options) error {
 	return nil
 }
 
-func (s SelectAll) Select(_ context.Context, ns Namespace, local *peer.AddrInfo, opts *discovery.Options) (InfoSlice, error) {
-	return limit(opts, s.load(ns, local)), nil
+func (t SelectAll) Select(_ context.Context, s Scope, local *peer.AddrInfo, opts *discovery.Options) (InfoSlice, error) {
+	return limit(opts, t.load(s, local)), nil
 }
 
 type SelectRing struct{ SelectAll }
 
-func (s SelectRing) Select(ctx context.Context, ns Namespace, local *peer.AddrInfo, opts *discovery.Options) (InfoSlice, error) {
-	peers := s.load(ns, local)
+func (t SelectRing) Select(ctx context.Context, s Scope, local *peer.AddrInfo, opts *discovery.Options) (InfoSlice, error) {
+	peers := t.load(s, local)
 	gt := peers.Filter(func(info *peer.AddrInfo) bool {
 		return info.ID > local.ID
 	})
@@ -54,14 +54,14 @@ type SelectRandom struct {
 	SelectAll
 }
 
-func (r *SelectRandom) Select(_ context.Context, ns Namespace, local *peer.AddrInfo, opts *discovery.Options) (InfoSlice, error) {
-	r.init.Do(func() {
-		if r.loader = (globalShuffleLoader{}); r.Src != nil {
-			r.loader = &shuffleLoader{r: rand.New(r.Src)}
+func (t *SelectRandom) Select(_ context.Context, s Scope, local *peer.AddrInfo, opts *discovery.Options) (InfoSlice, error) {
+	t.init.Do(func() {
+		if t.loader = (globalShuffleLoader{}); t.Src != nil {
+			t.loader = &shuffleLoader{r: rand.New(t.Src)}
 		}
 	})
 
-	return limit(opts, r.load(ns, local)), nil
+	return limit(opts, t.load(s, local)), nil
 }
 
 func limit(opts *discovery.Options, as InfoSlice) InfoSlice {
@@ -73,7 +73,7 @@ func limit(opts *discovery.Options, as InfoSlice) InfoSlice {
 }
 
 type loader interface {
-	load(Namespace, *peer.AddrInfo) InfoSlice
+	load(Scope, *peer.AddrInfo) InfoSlice
 }
 
 // sortedLoader is embedded in various loaders/topologies (especially defaultLoader)
@@ -94,8 +94,8 @@ func (defaultLoader) load(ps interface{ Peers() InfoSlice }, local *peer.AddrInf
 
 type globalShuffleLoader struct{}
 
-func (globalShuffleLoader) load(ns Namespace, local *peer.AddrInfo) InfoSlice {
-	return loadAndShuffle(ns, local, rand.Shuffle)
+func (globalShuffleLoader) load(s Scope, local *peer.AddrInfo) InfoSlice {
+	return loadAndShuffle(s, local, rand.Shuffle)
 }
 
 type shuffleLoader struct {
@@ -103,15 +103,15 @@ type shuffleLoader struct {
 	r  *rand.Rand
 }
 
-func (loader *shuffleLoader) load(ns Namespace, local *peer.AddrInfo) InfoSlice {
+func (loader *shuffleLoader) load(s Scope, local *peer.AddrInfo) InfoSlice {
 	loader.mu.Lock()
 	defer loader.mu.Unlock()
 
-	return loadAndShuffle(ns, local, loader.r.Shuffle)
+	return loadAndShuffle(s, local, loader.r.Shuffle)
 }
 
-func loadAndShuffle(ns Namespace, local *peer.AddrInfo, shuffle func(int, func(i, j int))) InfoSlice {
-	as := defaultLoader{}.load(ns, local)
+func loadAndShuffle(s Scope, local *peer.AddrInfo, shuffle func(int, func(i, j int))) InfoSlice {
+	as := defaultLoader{}.load(s, local)
 	shuffle(len(as), as.Swap)
 	return as
 }
