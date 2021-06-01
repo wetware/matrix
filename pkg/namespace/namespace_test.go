@@ -7,7 +7,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/stretchr/testify/require"
 	"github.com/wetware/matrix/internal/testutil"
-	"github.com/wetware/matrix/pkg/clock"
 	"github.com/wetware/matrix/pkg/namespace"
 )
 
@@ -16,22 +15,19 @@ const (
 	ttl  = time.Second
 )
 
-var t0 = time.Date(2021, 04, 9, 8, 0, 0, 0, time.UTC)
-
 func TestProvider(t *testing.T) {
 	t.Parallel()
 	t.Helper()
 
-	c := clock.New()
-	c.Advance(t0)
+	c := make(chan struct{})
 
 	info := testutil.RandInfo()
 
-	ns := namespace.New(c)
+	ns := namespace.New(mockTimer(c))
 	got := ns.LoadOrCreate(name).
 		Upsert(info, &discovery.Options{Ttl: ttl})
 
-	c.Advance(t0.Add(ttl + c.Accuracy()))
+	close(c) // signal expiration
 
 	require.Equal(t, ttl, got)
 	require.Eventually(t, func() bool {
@@ -39,4 +35,18 @@ func TestProvider(t *testing.T) {
 	}, time.Millisecond*100, time.Millisecond*10,
 		"peer was not expired after %s", ttl)
 
+}
+
+type mockTimer <-chan struct{}
+
+func (t mockTimer) After(_ time.Duration, callback func()) func() {
+	cancel := make(chan struct{})
+	go func() {
+		select {
+		case <-t:
+			callback()
+		case <-cancel:
+		}
+	}()
+	return func() { close(cancel) }
 }
