@@ -3,22 +3,22 @@ package main
 import (
 	"context"
 
-	matrix "github.com/wetware/matrix/pkg"
+	mx "github.com/wetware/matrix/pkg"
 	"github.com/wetware/matrix/pkg/net"
 )
 
 const ns = "matrix.example.basic"
 
-func opDiscover() matrix.OpFunc {
-	return matrix.Announce(net.SelectAll{}, ns).
-		Then(matrix.Discover(net.SelectAll{}, ns))
+func opDiscover() mx.OpFunc {
+	return mx.Announce(net.SelectAll{}, ns).
+		Then(mx.Discover(net.SelectAll{}, ns))
 }
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	env := matrix.New(ctx)
+	sim := mx.New(ctx)
 
 	/*
 
@@ -27,14 +27,14 @@ func main() {
 	 an (optional) way of reducing error-checking boilerplate.
 
 	*/
-	h0 := env.MustHost(ctx)
-	h1 := env.MustHost(ctx)
+	h0 := sim.MustHost(ctx)
+	h1 := sim.MustHost(ctx)
 
 	/*
 	 Matrix provides the Operations API, which allows developers
 	 to compose operations on collections of hosts.
 	*/
-	env.Op(opDiscover()).
+	sim.Op(opDiscover()).
 		Call(ctx, h0, h1).
 		Must()
 }

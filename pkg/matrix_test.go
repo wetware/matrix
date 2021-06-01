@@ -1,15 +1,18 @@
-package matrix_test
+package mx_test
 
 import (
 	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	matrix "github.com/wetware/matrix/pkg"
+	mx "github.com/wetware/matrix/pkg"
 	"github.com/wetware/matrix/pkg/net"
 )
 
-const ns = "matrix.test"
+const (
+	ns   = "matrix.test"
+	echo = "/echo"
+)
 
 func TestIntegration(t *testing.T) {
 	t.Parallel()
@@ -18,14 +21,13 @@ func TestIntegration(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		env := matrix.New(ctx)
+		sim := mx.New(ctx)
 
-		h0 := env.MustHost(ctx)
-		h1 := env.MustHost(ctx)
+		h0 := sim.MustHost(ctx)
+		h1 := sim.MustHost(ctx)
 
-		env.Op(matrix.Announce(net.SelectAll{}, ns)).
-			Then(matrix.Discover(net.SelectAll{}, ns)).
-			// Then(matrix.Filter()).
+		sim.Op(mx.Announce(net.SelectAll{}, ns)).
+			Then(mx.Discover(net.SelectAll{}, ns)).
 			Call(ctx, h0, h1).
 			Must()
 	})
