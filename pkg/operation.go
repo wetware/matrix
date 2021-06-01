@@ -23,32 +23,32 @@ func (m Maybe) Then(next Maybe) Maybe {
 	}
 }
 
-type OpFunc func(env Env) func(ctx context.Context) Maybe
+type OpFunc func(s Simulation) func(ctx context.Context) Maybe
 
 func (fn OpFunc) Then(next OpFunc) OpFunc {
 	if fn == nil {
 		return next
 	}
 
-	return func(env Env) func(context.Context) Maybe {
+	return func(s Simulation) func(context.Context) Maybe {
 		return func(ctx context.Context) Maybe {
-			return fn(env)(ctx).Then(next(env)(ctx))
+			return fn(s)(ctx).Then(next(s)(ctx))
 		}
 	}
 }
 
 type Op struct {
-	env  Env
+	sim  Simulation
 	call OpFunc
 }
 
 func (op Op) Then(call OpFunc) Op {
-	return Op{env: op.env, call: op.call.Then(call)}
+	return Op{sim: op.sim, call: op.call.Then(call)}
 }
 
 func (op Op) Call(ctx context.Context, hs ...host.Host) OpCall {
 	return func() error {
-		_, err := op.call(op.env)(ctx)(hs)
+		_, err := op.call(op.sim)(ctx)(hs)
 		return err
 	}
 }

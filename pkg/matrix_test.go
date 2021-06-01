@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	matrix "github.com/wetware/matrix/pkg"
-	"github.com/wetware/matrix/pkg/discover"
+	"github.com/wetware/matrix/pkg/net"
 )
 
 const ns = "matrix.test"
@@ -23,8 +23,8 @@ func TestIntegration(t *testing.T) {
 		h0 := env.MustHost(ctx)
 		h1 := env.MustHost(ctx)
 
-		env.Op(matrix.Announce(discover.SelectAll{}, ns)).
-			Then(matrix.Discover(discover.SelectAll{}, ns)).
+		env.Op(matrix.Announce(net.SelectAll{}, ns)).
+			Then(matrix.Discover(net.SelectAll{}, ns)).
 			// Then(matrix.Filter()).
 			Call(ctx, h0, h1).
 			Must()

@@ -1,25 +1,4 @@
-package discover_test
-
-// import (
-// 	"context"
-// 	"errors"
-// 	"fmt"
-// 	"math/rand"
-// 	"sort"
-// 	"testing"
-
-// 	"github.com/libp2p/go-libp2p-core/discovery"
-// 	"github.com/libp2p/go-libp2p-core/peer"
-// 	inproc "github.com/lthibault/go-libp2p-inproc-transport"
-// 	"github.com/mr-tron/base58"
-// 	"github.com/multiformats/go-multiaddr"
-// 	"github.com/multiformats/go-multihash"
-// 	"github.com/stretchr/testify/assert"
-// 	"github.com/stretchr/testify/require"
-// 	"golang.org/x/sync/errgroup"
-
-// 	"github.com/wetware/matrix/pkg/discover"
-// )
+package net
 
 // func TestDiscovery(t *testing.T) {
 // 	t.Parallel()
@@ -28,7 +7,7 @@ package discover_test
 // 	t.Run("DefaultOptionErrorFails", func(t *testing.T) {
 // 		t.Parallel()
 
-// 		d := discover.Discoverer{Strategy: failDefaultOptions{}}
+// 		d := discoveryService{topo: failDefaultOptions{}}
 // 		peers, err := d.FindPeers(context.Background(), "")
 // 		require.EqualError(t, err, "test")
 // 		require.Nil(t, peers)
@@ -37,7 +16,7 @@ package discover_test
 // 	t.Run("BadOptionFails", func(t *testing.T) {
 // 		t.Parallel()
 
-// 		var d discover.Discoverer
+// 		var d discoveryService
 // 		peers, err := d.FindPeers(context.Background(), "",
 // 			func(*discovery.Options) error { return errors.New("test") })
 // 		require.EqualError(t, err, "test")
@@ -47,7 +26,7 @@ package discover_test
 // 	t.Run("ValidationErrorFails", func(t *testing.T) {
 // 		t.Parallel()
 
-// 		d := discover.Discoverer{Strategy: failValidaton{}}
+// 		d := discoveryService{topo: failValidaton{}}
 // 		peers, err := d.FindPeers(context.Background(), "")
 // 		require.EqualError(t, err, "test")
 // 		require.Nil(t, peers)
@@ -59,9 +38,9 @@ package discover_test
 // 		const n = 10
 // 		newTestEnv(n)
 
-// 		d := discover.Discoverer{
+// 		d := discoveryService{
 // 			Env:      newTestEnv(n),
-// 			Strategy: discover.SelectAll{},
+// 			Strategy: net.SelectAll{},
 // 		}
 
 // 		peers, err := d.FindPeers(context.Background(), "")
@@ -86,7 +65,7 @@ package discover_test
 
 // 			const limit = 5
 
-// 			var s discover.SelectAll
+// 			var s net.SelectAll
 
 // 			as, err := runStrategy(env, s, discovery.Limit(limit))
 // 			require.NoError(t, err)
@@ -107,7 +86,7 @@ package discover_test
 // 		t.Run("GlobalSource", func(t *testing.T) {
 // 			t.Parallel()
 
-// 			var s discover.SelectRandom
+// 			var s net.SelectRandom
 // 			as, err := runStrategy(env, &s)
 // 			require.NoError(t, err)
 
@@ -117,12 +96,12 @@ package discover_test
 // 		t.Run("Reproducible", func(t *testing.T) {
 // 			t.Parallel()
 
-// 			as0, err := runStrategy(env, &discover.SelectRandom{
+// 			as0, err := runStrategy(env, &net.SelectRandom{
 // 				Src: rand.NewSource(42),
 // 			})
 // 			require.NoError(t, err)
 
-// 			as1, err := runStrategy(env, &discover.SelectRandom{
+// 			as1, err := runStrategy(env, &net.SelectRandom{
 // 				Src: rand.NewSource(42),
 // 			})
 // 			require.NoError(t, err)
@@ -139,7 +118,7 @@ package discover_test
 // 		t.Run("MissingPeerIDFails", func(t *testing.T) {
 // 			t.Parallel()
 
-// 			var s discover.SelectRing
+// 			var s net.SelectRing
 // 			as, err := runStrategy(env, s)
 // 			require.Error(t, err)
 // 			require.Nil(t, as)
@@ -148,8 +127,8 @@ package discover_test
 // 		t.Run("PeerNotInEnvironmentFails", func(t *testing.T) {
 // 			t.Parallel()
 
-// 			var s discover.SelectRing
-// 			as, err := runStrategy(env, s, discover.WithPeerID(randID()))
+// 			var s net.SelectRing
+// 			as, err := runStrategy(env, s, net.WithPeerID(randID()))
 // 			require.Error(t, err)
 // 			require.Nil(t, as)
 // 		})
@@ -170,14 +149,14 @@ package discover_test
 // 					return func() (err error) {
 // 						var (
 // 							info *peer.AddrInfo
-// 							s    discover.SelectRing
+// 							s    net.SelectRing
 // 							as   inproc.AddrSlice
 // 						)
 // 						if info, err = peer.AddrInfoFromP2pAddr(a); err != nil {
 // 							return
 // 						}
 
-// 						if as, err = runStrategy(env, s, discover.WithPeerID(info.ID)); err == nil {
+// 						if as, err = runStrategy(env, s, net.WithPeerID(info.ID)); err == nil {
 // 							neighbors[i] = as[0]
 // 						}
 
@@ -194,7 +173,7 @@ package discover_test
 // 	})
 // }
 
-// func runStrategy(env discover.PeerListProvider, s discover.Strategy, opt ...discovery.Option) (inproc.AddrSlice, error) {
+// func runStrategy(env net.PeerListProvider, s net.Strategy, opt ...discovery.Option) (inproc.AddrSlice, error) {
 // 	opts := newOption()
 // 	if err := s.SetDefaultOptions(opts); err != nil {
 // 		return nil, err
@@ -270,13 +249,13 @@ package discover_test
 // 	return id
 // }
 
-// type failValidaton struct{ discover.SelectAll }
+// type failValidaton struct{ net.SelectAll }
 
 // func (failValidaton) Validate(*discovery.Options) error {
 // 	return errors.New("test")
 // }
 
-// type failDefaultOptions struct{ discover.SelectAll }
+// type failDefaultOptions struct{ net.SelectAll }
 
 // func (failDefaultOptions) SetDefaultOptions(*discovery.Options) error {
 // 	return errors.New("test")

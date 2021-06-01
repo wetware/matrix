@@ -1,4 +1,4 @@
-package discover
+package net
 
 import (
 	"context"
@@ -10,8 +10,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 )
 
-// Strategy selects peeers from the environment.
-type Strategy interface {
+// Topology selects peeers from the environment.
+type Topology interface {
 	SetDefaultOptions(*discovery.Options) error
 	Select(context.Context, Namespace, *discovery.Options) (InfoSlice, error)
 }

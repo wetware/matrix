@@ -1,4 +1,4 @@
-package env
+package net
 
 import (
 	"sort"
@@ -8,20 +8,19 @@ import (
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/wetware/matrix/pkg/clock"
-	"github.com/wetware/matrix/pkg/discover"
 )
 
 type nsMap struct {
 	mu sync.RWMutex
-	m  map[string]discover.Namespace
-	c  *Clock
+	m  map[string]Namespace
+	t  Timer
 }
 
-func nsmap(c *clock.Clock) *nsMap {
-	return &nsMap{m: make(map[string]discover.Namespace), c: (*Clock)(c)}
+func nsmap(t Timer) *nsMap {
+	return &nsMap{m: make(map[string]Namespace), t: t}
 }
 
-func (nm *nsMap) LoadOrCreate(name string) discover.Namespace {
+func (nm *nsMap) LoadOrCreate(name string) Namespace {
 	nm.mu.RLock()
 	ns, ok := nm.Load(name)
 	nm.mu.RUnlock()
@@ -32,7 +31,7 @@ func (nm *nsMap) LoadOrCreate(name string) discover.Namespace {
 
 		// may have been added concurrently
 		if ns, ok = nm.m[name]; !ok {
-			ns = namespace(nm.c)
+			ns = namespace(nm.t)
 			nm.m[name] = ns
 		}
 	}
@@ -40,7 +39,7 @@ func (nm *nsMap) LoadOrCreate(name string) discover.Namespace {
 	return ns
 }
 
-func (nm *nsMap) Load(name string) (ns discover.Namespace, ok bool) {
+func (nm *nsMap) Load(name string) (ns Namespace, ok bool) {
 	nm.mu.RLock()
 	ns, ok = nm.m[name]
 	nm.mu.RUnlock()
@@ -50,16 +49,18 @@ func (nm *nsMap) Load(name string) (ns discover.Namespace, ok bool) {
 type ns struct {
 	mu sync.RWMutex
 	rs map[peer.ID]*nsRecord
-	c  *Clock
+	t  Timer
 }
 
-func namespace(c *Clock) *ns { return &ns{rs: make(map[peer.ID]*nsRecord), c: c} }
+func namespace(t Timer) *ns {
+	return &ns{rs: make(map[peer.ID]*nsRecord), t: t}
+}
 
-func (ns *ns) Peers() discover.InfoSlice {
+func (ns *ns) Peers() InfoSlice {
 	ns.mu.RLock()
 	defer ns.mu.RUnlock()
 
-	is := make(discover.InfoSlice, 0, len(ns.rs))
+	is := make(InfoSlice, 0, len(ns.rs))
 	defer sort.Sort(is) // ensure reproducibility
 
 	for _, rec := range ns.rs {
@@ -81,7 +82,7 @@ func (ns *ns) Upsert(info *peer.AddrInfo, opts *discovery.Options) time.Duration
 }
 
 func (ns *ns) insert(info *peer.AddrInfo, opts *discovery.Options) time.Duration {
-	ns.rs[info.ID] = record(info, ns.c.After(opts.Ttl, func() {
+	ns.rs[info.ID] = record(info, ns.t.After(opts.Ttl, func() {
 		ns.mu.Lock()
 		delete(ns.rs, info.ID)
 		ns.mu.Unlock()

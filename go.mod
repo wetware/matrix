@@ -12,6 +12,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.0.6 // indirect
 	github.com/libp2p/go-libp2p v0.13.0
 	github.com/libp2p/go-libp2p-core v0.8.5
+	github.com/libp2p/go-libp2p-discovery v0.5.0
 	github.com/lthibault/go-libp2p-inproc-transport v0.0.1-alpha.3
 	github.com/lthibault/util v0.0.10
 	github.com/mr-tron/base58 v1.2.0

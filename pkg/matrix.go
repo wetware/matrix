@@ -2,102 +2,80 @@ package matrix
 
 import (
 	"context"
+	"time"
 
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/wetware/matrix/pkg/discover"
-	"golang.org/x/sync/errgroup"
+	"github.com/libp2p/go-libp2p/config"
+	"github.com/wetware/matrix/pkg/clock"
+	"github.com/wetware/matrix/pkg/net"
 )
 
-type (
-	HostSlice []host.Host
-
-	MapFunc    func(ctx context.Context, env Env, i int, h host.Host) error
-	SelectFunc func(ctx context.Context, env Env, hs HostSlice) (HostSlice, error)
-
-	FilterFunc func(int, host.Host) bool
-)
-
-func Map(f MapFunc) OpFunc {
-	return mapper(func(hs HostSlice, hf func(MapFunc) func(int, host.Host) error) error {
-		return hs.Map(hf(f))
-	})
+type Clock interface {
+	Accuracy() time.Duration
+	After(d time.Duration, callback func()) clock.CancelFunc
+	Ticker(userExpire time.Duration, callback func()) clock.CancelFunc
 }
 
-func Go(f MapFunc) OpFunc {
-	return mapper(func(hs HostSlice, hf func(MapFunc) func(int, host.Host) error) error {
-		return hs.Go(hf(f))
-	})
+type Simulation interface {
+	Clock() Clock
+	NewHost(ctx context.Context, opt ...config.Option) (host.Host, error)
+	MustHost(ctx context.Context, opt ...config.Option) host.Host
+	NewDiscovery(info peer.AddrInfo, s net.Topology) discovery.Discovery
+	Op(...OpFunc) Op
 }
 
-func Select(f SelectFunc) OpFunc {
-	return func(env Env) func(ctx context.Context) Maybe {
-		return func(ctx context.Context) Maybe {
-			return func(hs HostSlice) (HostSlice, error) {
-				return f(ctx, env, hs)
-			}
-		}
+type sim struct {
+	*net.Env
+	c *clock.Clock
+}
+
+func New(ctx context.Context) Simulation {
+	c := clock.New()
+	go tick(ctx, c)
+
+	return sim{
+		Env: net.New(c),
+		c:   c,
 	}
 }
 
-func Filter(f FilterFunc) OpFunc {
-	return Select(func(ctx context.Context, env Env, hs HostSlice) (HostSlice, error) {
-		sel := hs[:0]
-		for i, h := range hs {
-			if f(i, h) {
-				sel = append(sel, h)
-			}
-		}
-		return sel, nil
-	})
+func (s sim) Clock() Clock { return s.c }
+
+func (s sim) Op(ops ...OpFunc) Op {
+	var of OpFunc
+	for _, op := range ops {
+		of = of.Then(op)
+	}
+
+	return Op{sim: s, call: of}
 }
 
-func Announce(s discover.Strategy, ns string, opt ...discovery.Option) OpFunc {
-	return Go(func(ctx context.Context, env Env, i int, h host.Host) error {
-		var d = env.NewDiscovery(*host.InfoFromHost(h), s)
-		_, err := d.Advertise(ctx, ns, opt...)
-		return err
-	})
+// MustHost returns a host or panics if an error was encountered.
+func (s sim) MustHost(ctx context.Context, opt ...config.Option) host.Host {
+	h, err := s.NewHost(ctx, opt...)
+	must(err)
+	return h
 }
 
-func Discover(s discover.Strategy, ns string, opt ...discovery.Option) OpFunc {
-	return Go(func(ctx context.Context, env Env, i int, h host.Host) (err error) {
-		var (
-			d  = env.NewDiscovery(*host.InfoFromHost(h), s)
-			g  errgroup.Group
-			ps <-chan peer.AddrInfo
-		)
-
-		if ps, err = d.FindPeers(ctx, ns, opt...); err != nil {
-			return err
-		}
-
-		for info := range ps {
-			if info.ID != h.ID() {
-				g.Go(connect(ctx, h, info))
-			}
-		}
-		return g.Wait()
-	})
-}
-
-func connect(ctx context.Context, h host.Host, info peer.AddrInfo) func() error {
-	return func() error {
-		return h.Connect(ctx, info)
+func must(err error) {
+	if err != nil {
+		panic(err)
 	}
 }
 
-func mapper(f func(hs HostSlice, hf func(MapFunc) func(int, host.Host) error) error) OpFunc {
-	return func(env Env) func(ctx context.Context) Maybe {
-		return func(ctx context.Context) Maybe {
-			return func(hs HostSlice) (HostSlice, error) {
-				return hs, f(hs, func(mf MapFunc) func(int, host.Host) error {
-					return func(i int, h host.Host) error {
-						return mf(ctx, env, i, h)
-					}
-				})
-			}
+func tick(ctx context.Context, c *clock.Clock) {
+	ticker := time.NewTicker(c.Accuracy())
+	defer ticker.Stop()
+
+	for {
+		select {
+		case t := <-ticker.C:
+			c.Advance(t)
+
+		case <-ctx.Done():
+			return
 		}
 	}
 }

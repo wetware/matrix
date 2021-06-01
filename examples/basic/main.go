@@ -4,14 +4,14 @@ import (
 	"context"
 
 	matrix "github.com/wetware/matrix/pkg"
-	"github.com/wetware/matrix/pkg/discover"
+	"github.com/wetware/matrix/pkg/net"
 )
 
 const ns = "matrix.example.basic"
 
 func opDiscover() matrix.OpFunc {
-	return matrix.Announce(discover.SelectAll{}, ns).
-		Then(matrix.Discover(discover.SelectAll{}, ns))
+	return matrix.Announce(net.SelectAll{}, ns).
+		Then(matrix.Discover(net.SelectAll{}, ns))
 }
 
 func main() {
