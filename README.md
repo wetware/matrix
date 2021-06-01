@@ -60,7 +60,46 @@ But there's more!  Just like Testground, Matrix provides support for sophisticat
 The following example can be found under `examples/basic`.  See the examples directory for more.
 
 ```go
-// TODO
+import (
+    "context"
+
+    mx "github.com/wetware/matrix/pkg"
+    "github.com/wetware/matrix/pkg/net"
+)
+
+const ns   = "matrix.test"
+
+
+ctx, cancel := context.WithCancel(context.Background())
+defer cancel()
+
+sim := mx.New(ctx)
+
+/*
+
+    Most Matrix functions have a corresponding Must* function
+    that panics instead of returning an error.  This provides
+    an (optional) way of reducing error-checking boilerplate.
+
+*/
+h0 := sim.MustHost(ctx)
+h1 := sim.MustHost(ctx)
+
+/*
+    Matrix provides the Operations API, which allows developers
+    to compose operations on collections of hosts.
+
+    Here, we're using a simple two-stage pipeline to announce
+    each peer to the namespace and connect them to each other.
+*/
+sim.Op(mx.Announce(net.SelectAll{}, ns)).
+    Then(mx.Discover(net.SelectAll{}, ns)).
+    Call(ctx, h0, h1).
+    Must()
+
+/*
+    h0 and h1 are now connected to each other!
+*/
 ```
 
 ## Team
