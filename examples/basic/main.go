@@ -9,7 +9,6 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/network"
 	mx "github.com/wetware/matrix/pkg"
-	"github.com/wetware/matrix/pkg/netsim"
 )
 
 const (
@@ -43,8 +42,8 @@ func main() {
 	 Here, we're using a simple two-stage pipeline to announce
 	 each peer to the namespace and connect them to each other.
 	*/
-	sim.Op(mx.Announce(netsim.SelectAll{}, ns)).
-		Then(mx.Discover(netsim.SelectAll{}, ns)).
+	sim.Op(mx.Announce(nil, ns)).
+		Then(mx.Discover(nil, ns)).
 		Call(ctx, h0, h1).
 		Must()
 
