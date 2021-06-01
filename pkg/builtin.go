@@ -43,13 +43,7 @@ func Select(f SelectFunc) OpFunc {
 
 func Filter(f FilterFunc) OpFunc {
 	return Select(func(ctx context.Context, sim Simulation, hs HostSlice) (HostSlice, error) {
-		sel := hs[:0]
-		for i, h := range hs {
-			if f(i, h) {
-				sel = append(sel, h)
-			}
-		}
-		return sel, nil
+		return hs.Filter(f), nil
 	})
 }
 

@@ -66,6 +66,25 @@ func (s Simulation) MustHost(ctx context.Context, opt ...config.Option) host.Hos
 	return h
 }
 
+// NewHostSet builds and configures n hosts with identical parameters.
+//
+// See NewHost.
+func (s Simulation) NewHostSet(ctx context.Context, n int, opt ...config.Option) (HostSlice, error) {
+	hs := make(HostSlice, n)
+	return hs, hs.Go(func(i int, _ host.Host) (err error) {
+		hs[i], err = s.n.NewHost(ctx, opt)
+		return
+	})
+}
+
+// MustHostSet calls NewHostSet with the supplied parameters and panics if
+// an error is encountered.
+func (s Simulation) MustHostSet(ctx context.Context, n int, opt ...config.Option) HostSlice {
+	hs, err := s.NewHostSet(ctx, n, opt...)
+	must(err)
+	return hs
+}
+
 // NewDiscovery returns a discovery.Discovery implementation that
 // supports the Simulation's in-process network.
 //
@@ -73,12 +92,12 @@ func (s Simulation) MustHost(ctx context.Context, opt ...config.Option) host.Hos
 // connection topology.  All peers must use the same instance
 // of t in order to obtain the desired topology.
 //
-// If t == nil, the topology defaults to net.SelectAll.
+// If t == nil, the topology defaults to netsim.SelectAll.
 func (s Simulation) NewDiscovery(h host.Host, t netsim.Topology) *netsim.DiscoveryService {
 	return &netsim.DiscoveryService{
 		NS:   s.n.NS,
 		Info: host.InfoFromHost(h),
-		Topo: t,
+		Topo: topology(t),
 	}
 }
 
@@ -101,4 +120,12 @@ func tick(ctx context.Context, c *clock.Clock) {
 			return
 		}
 	}
+}
+
+func topology(t netsim.Topology) netsim.Topology {
+	if t != nil {
+		return t
+	}
+
+	return netsim.SelectAll{}
 }
