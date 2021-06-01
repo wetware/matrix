@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/discovery"
@@ -30,10 +31,12 @@ func (is InfoSlice) Swap(i, j int)      { is[i], is[j] = is[j], is[i] }
 
 const DefaultTTL = time.Hour * 8766
 
-type discoveryService struct {
-	ns       NamespaceProvider
-	info     *peer.AddrInfo
-	topo     Topology
+type DiscoveryService struct {
+	NS   NamespaceProvider
+	Info *peer.AddrInfo
+	Topo Topology
+
+	init     sync.Once
 	validate func(*discovery.Options) error
 }
 
@@ -41,8 +44,19 @@ type validator interface {
 	Validate(*discovery.Options) error
 }
 
-func (d discoveryService) FindPeers(ctx context.Context, ns string, opt ...discovery.Option) (<-chan peer.AddrInfo, error) {
-	n, ok := d.ns.Load(ns)
+func (d *DiscoveryService) FindPeers(ctx context.Context, ns string, opt ...discovery.Option) (<-chan peer.AddrInfo, error) {
+	d.init.Do(func() {
+		if d.Topo == nil {
+			d.Topo = SelectAll{}
+		}
+
+		d.validate = func(o *discovery.Options) error { return nil }
+		if v, ok := d.Topo.(validator); ok {
+			d.validate = v.Validate
+		}
+	})
+
+	n, ok := d.NS.Load(ns)
 	if !ok {
 		return nopchan, nil
 	}
@@ -52,17 +66,17 @@ func (d discoveryService) FindPeers(ctx context.Context, ns string, opt ...disco
 		return nil, err
 	}
 
-	as, err := d.topo.Select(ctx, n, opts)
+	as, err := d.Topo.Select(ctx, n, opts)
 	return infochan(as), err
 }
 
-func (d discoveryService) Advertise(ctx context.Context, ns string, opt ...discovery.Option) (time.Duration, error) {
+func (d *DiscoveryService) Advertise(ctx context.Context, ns string, opt ...discovery.Option) (time.Duration, error) {
 	opts, err := options(opt)
 	if err != nil {
 		return 0, err
 	}
 
-	return d.ns.LoadOrCreate(ns).Upsert(d.info, opts), nil
+	return d.NS.LoadOrCreate(ns).Upsert(d.Info, opts), nil
 }
 
 func options(opt []discovery.Option) (*discovery.Options, error) {
@@ -76,9 +90,9 @@ func options(opt []discovery.Option) (*discovery.Options, error) {
 	return opts, nil
 }
 
-func (d discoveryService) options(ns string, opt []discovery.Option) (*discovery.Options, error) {
+func (d *DiscoveryService) options(ns string, opt []discovery.Option) (*discovery.Options, error) {
 	opts := newOptions()
-	if err := d.topo.SetDefaultOptions(opts); err != nil {
+	if err := d.Topo.SetDefaultOptions(opts); err != nil {
 		return nil, err
 	}
 

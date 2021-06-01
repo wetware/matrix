@@ -55,7 +55,7 @@ func Filter(f FilterFunc) OpFunc {
 
 func Announce(t net.Topology, ns string, opt ...discovery.Option) OpFunc {
 	return Go(func(ctx context.Context, sim Simulation, i int, h host.Host) error {
-		var d = sim.NewDiscovery(*host.InfoFromHost(h), t)
+		var d = sim.NewDiscovery(h, t)
 		_, err := d.Advertise(ctx, ns, opt...)
 		return err
 	})
@@ -64,7 +64,7 @@ func Announce(t net.Topology, ns string, opt ...discovery.Option) OpFunc {
 func Discover(t net.Topology, ns string, opt ...discovery.Option) OpFunc {
 	return Go(func(ctx context.Context, sim Simulation, i int, h host.Host) (err error) {
 		var (
-			d  = sim.NewDiscovery(*host.InfoFromHost(h), t)
+			d  = sim.NewDiscovery(h, t)
 			g  errgroup.Group
 			ps <-chan peer.AddrInfo
 		)
