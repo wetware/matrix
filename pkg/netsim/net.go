@@ -20,8 +20,8 @@ type Env struct {
 	NS     NamespaceProvider
 }
 
-func New(t Timer) *Env {
-	return &Env{
+func New(t Timer) Env {
+	return Env{
 		inproc: inproc.NewEnv(),
 		NS:     nsmap(t),
 	}

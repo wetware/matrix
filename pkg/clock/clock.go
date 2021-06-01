@@ -1,7 +1,6 @@
 package clock
 
 import (
-	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -25,7 +24,6 @@ type Clock struct {
 	t1     [nearSize]*timepoint     // 256 slots
 	t2Tot5 [4][levelSize]*timepoint // 4x64 time-scales
 
-	init         sync.Once
 	accuracy     time.Duration
 	ticks        func(time.Time) time.Duration
 	curTimePoint time.Duration
@@ -225,12 +223,9 @@ func (c *Clock) moveAndExec() {
 }
 
 func (c *Clock) Advance(t time.Time) {
-	c.init.Do(func() {
+	if c.curTimePoint == 0 {
 		c.curTimePoint = c.ticks(t)
-	})
-	// First judge whether it needs to be updated
-	// The kernel implements a comparison between global tick and local tick.
-	// There is no tick in the application layer, and the time is directly compared.
+	}
 
 	ts := c.ticks(t)
 	if ts < c.curTimePoint {

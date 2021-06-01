@@ -39,7 +39,7 @@ func (is InfoSlice) Filter(f func(info *peer.AddrInfo) bool) InfoSlice {
 	return filt
 }
 
-const DefaultTTL = time.Hour * 8766
+const DefaultTTL = time.Hour * 24
 
 type DiscoveryService struct {
 	NS   NamespaceProvider

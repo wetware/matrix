@@ -17,7 +17,7 @@ type Clock interface {
 }
 
 type Simulation struct {
-	n *netsim.Env
+	n netsim.Env
 	c *clock.Clock
 }
 
