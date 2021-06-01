@@ -61,7 +61,7 @@ func (s Simulation) NewHost(ctx context.Context, opt ...config.Option) (host.Hos
 
 // MustHost returns a host or panics if an error was encountered.
 func (s Simulation) MustHost(ctx context.Context, opt ...config.Option) host.Host {
-	h, err := s.n.NewHost(ctx, opt)
+	h, err := s.NewHost(ctx, opt...)
 	must(err)
 	return h
 }
