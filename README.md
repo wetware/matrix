@@ -36,7 +36,7 @@ Taken together, these characteristics can make Testground overkill for simple un
 
 ### Matrix
 
-Matrix is a library for writing unit-test, benchmarks and exploratory simulations for libp2p.  Contrary to Testground, everything happens in a single process, without using the network.
+Matrix is a library for writing unit-tests, benchmarks and exploratory simulations for libp2p.  Contrary to Testground, everything happens in a single process, without using the network.
 
 #### Goals:
 - Drop-in compatibility with PL stack
