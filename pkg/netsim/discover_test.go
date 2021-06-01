@@ -1,4 +1,4 @@
-package net
+package netsim
 
 // func TestDiscovery(t *testing.T) {
 // 	t.Parallel()
@@ -40,7 +40,7 @@ package net
 
 // 		d := discoveryService{
 // 			Env:      newTestEnv(n),
-// 			Strategy: net.SelectAll{},
+// 			Strategy: netsim.SelectAll{},
 // 		}
 
 // 		peers, err := d.FindPeers(context.Background(), "")
@@ -65,7 +65,7 @@ package net
 
 // 			const limit = 5
 
-// 			var s net.SelectAll
+// 			var s netsim.SelectAll
 
 // 			as, err := runStrategy(env, s, discovery.Limit(limit))
 // 			require.NoError(t, err)
@@ -86,7 +86,7 @@ package net
 // 		t.Run("GlobalSource", func(t *testing.T) {
 // 			t.Parallel()
 
-// 			var s net.SelectRandom
+// 			var s netsim.SelectRandom
 // 			as, err := runStrategy(env, &s)
 // 			require.NoError(t, err)
 
@@ -96,12 +96,12 @@ package net
 // 		t.Run("Reproducible", func(t *testing.T) {
 // 			t.Parallel()
 
-// 			as0, err := runStrategy(env, &net.SelectRandom{
+// 			as0, err := runStrategy(env, &netsim.SelectRandom{
 // 				Src: rand.NewSource(42),
 // 			})
 // 			require.NoError(t, err)
 
-// 			as1, err := runStrategy(env, &net.SelectRandom{
+// 			as1, err := runStrategy(env, &netsim.SelectRandom{
 // 				Src: rand.NewSource(42),
 // 			})
 // 			require.NoError(t, err)
@@ -118,7 +118,7 @@ package net
 // 		t.Run("MissingPeerIDFails", func(t *testing.T) {
 // 			t.Parallel()
 
-// 			var s net.SelectRing
+// 			var s netsim.SelectRing
 // 			as, err := runStrategy(env, s)
 // 			require.Error(t, err)
 // 			require.Nil(t, as)
@@ -127,7 +127,7 @@ package net
 // 		t.Run("PeerNotInEnvironmentFails", func(t *testing.T) {
 // 			t.Parallel()
 
-// 			var s net.SelectRing
+// 			var s netsim.SelectRing
 // 			as, err := runStrategy(env, s, net.WithPeerID(randID()))
 // 			require.Error(t, err)
 // 			require.Nil(t, as)
@@ -149,7 +149,7 @@ package net
 // 					return func() (err error) {
 // 						var (
 // 							info *peer.AddrInfo
-// 							s    net.SelectRing
+// 							s    netsim.SelectRing
 // 							as   inproc.AddrSlice
 // 						)
 // 						if info, err = peer.AddrInfoFromP2pAddr(a); err != nil {
@@ -249,13 +249,13 @@ package net
 // 	return id
 // }
 
-// type failValidaton struct{ net.SelectAll }
+// type failValidaton struct{ netsim.SelectAll }
 
 // func (failValidaton) Validate(*discovery.Options) error {
 // 	return errors.New("test")
 // }
 
-// type failDefaultOptions struct{ net.SelectAll }
+// type failDefaultOptions struct{ netsim.SelectAll }
 
 // func (failDefaultOptions) SetDefaultOptions(*discovery.Options) error {
 // 	return errors.New("test")

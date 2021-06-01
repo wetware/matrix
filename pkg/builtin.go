@@ -6,7 +6,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/wetware/matrix/pkg/net"
+	"github.com/wetware/matrix/pkg/netsim"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -53,7 +53,7 @@ func Filter(f FilterFunc) OpFunc {
 	})
 }
 
-func Announce(t net.Topology, ns string, opt ...discovery.Option) OpFunc {
+func Announce(t netsim.Topology, ns string, opt ...discovery.Option) OpFunc {
 	return Go(func(ctx context.Context, sim Simulation, i int, h host.Host) error {
 		var d = sim.NewDiscovery(h, t)
 		_, err := d.Advertise(ctx, ns, opt...)
@@ -61,7 +61,7 @@ func Announce(t net.Topology, ns string, opt ...discovery.Option) OpFunc {
 	})
 }
 
-func Discover(t net.Topology, ns string, opt ...discovery.Option) OpFunc {
+func Discover(t netsim.Topology, ns string, opt ...discovery.Option) OpFunc {
 	return Go(func(ctx context.Context, sim Simulation, i int, h host.Host) (err error) {
 		var (
 			d  = sim.NewDiscovery(h, t)

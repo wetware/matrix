@@ -15,6 +15,8 @@ go get -u github.com/wetware/matrix
 
 ## Motivation
 
+**TL;DR:**  Testground is too complex for 99% of unit tests, benchmarks and exploratory simulations.
+
 ### Testground
 
 [Testground](https://github.com/testground/testground) is a platform for testing, benchmarking, and simulating distributed and p2p systems at scale. It's designed to be multi-lingual and runtime-agnostic, scaling gracefully from 2 to 10k instances, only when needed.
@@ -64,7 +66,6 @@ import (
     "context"
 
     mx "github.com/wetware/matrix/pkg"
-    "github.com/wetware/matrix/pkg/net"
 )
 
 const ns   = "matrix.test"
@@ -92,8 +93,8 @@ h1 := sim.MustHost(ctx)
     Here, we're using a simple two-stage pipeline to announce
     each peer to the namespace and connect them to each other.
 */
-sim.Op(mx.Announce(net.SelectAll{}, ns)).
-    Then(mx.Discover(net.SelectAll{}, ns)).
+sim.Op(mx.Announce(netsim.SelectAll{}, ns)).
+    Then(mx.Discover(netsim.SelectAll{}, ns)).
     Call(ctx, h0, h1).
     Must()
 

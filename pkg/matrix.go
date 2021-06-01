@@ -7,7 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p/config"
 	"github.com/wetware/matrix/pkg/clock"
-	"github.com/wetware/matrix/pkg/net"
+	"github.com/wetware/matrix/pkg/netsim"
 )
 
 type Clock interface {
@@ -17,7 +17,7 @@ type Clock interface {
 }
 
 type Simulation struct {
-	n *net.Env
+	n *netsim.Env
 	c *clock.Clock
 }
 
@@ -26,7 +26,7 @@ func New(ctx context.Context) Simulation {
 	go tick(ctx, c)
 
 	return Simulation{
-		n: net.New(c),
+		n: netsim.New(c),
 		c: c,
 	}
 }
@@ -74,8 +74,8 @@ func (s Simulation) MustHost(ctx context.Context, opt ...config.Option) host.Hos
 // of t in order to obtain the desired topology.
 //
 // If t == nil, the topology defaults to net.SelectAll.
-func (s Simulation) NewDiscovery(h host.Host, t net.Topology) *net.DiscoveryService {
-	return &net.DiscoveryService{
+func (s Simulation) NewDiscovery(h host.Host, t netsim.Topology) *netsim.DiscoveryService {
+	return &netsim.DiscoveryService{
 		NS:   s.n.NS,
 		Info: host.InfoFromHost(h),
 		Topo: t,

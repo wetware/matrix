@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	mx "github.com/wetware/matrix/pkg"
-	"github.com/wetware/matrix/pkg/net"
+	"github.com/wetware/matrix/pkg/netsim"
 )
 
 const (
@@ -42,8 +42,8 @@ func TestIntegration(t *testing.T) {
 
 		h1 = sim.MustHost(ctx)
 
-		sim.Op(mx.Announce(net.SelectAll{}, ns)).
-			Then(mx.Discover(net.SelectAll{}, ns)).
+		sim.Op(mx.Announce(netsim.SelectAll{}, ns)).
+			Then(mx.Discover(netsim.SelectAll{}, ns)).
 			Call(ctx, h0, h1).
 			Must()
 	})
