@@ -2,8 +2,8 @@ package netsim
 
 import (
 	"context"
-	"errors"
 	"math/rand"
+	"sort"
 	"sync"
 
 	"github.com/libp2p/go-libp2p-core/discovery"
@@ -13,47 +13,37 @@ import (
 // Topology selects peeers from the environment.
 type Topology interface {
 	SetDefaultOptions(*discovery.Options) error
-	Select(context.Context, Namespace, *discovery.Options) (InfoSlice, error)
+	Select(context.Context, Namespace, *peer.AddrInfo, *discovery.Options) (InfoSlice, error)
 }
 
-type SelectAll struct{ nopOptionSetter }
+type SelectAll struct{ defaultLoader }
 
-func (s SelectAll) Select(_ context.Context, ns Namespace, opts *discovery.Options) (InfoSlice, error) {
-	return limit(opts, ns.Peers()), nil
+// Implementations that embed SelectAll SHOULD call SelectAll.SetDefaultOptions before
+// modifying the opts.
+func (SelectAll) SetDefaultOptions(opts *discovery.Options) error {
+	opts.Ttl = DefaultTTL
+	opts.Other = make(map[interface{}]interface{})
+	return nil
 }
 
-type SelectRing struct{ nopOptionSetter }
+func (s SelectAll) Select(_ context.Context, ns Namespace, local *peer.AddrInfo, opts *discovery.Options) (InfoSlice, error) {
+	return limit(opts, s.load(ns, local)), nil
+}
 
-func (s SelectRing) Select(_ context.Context, ns Namespace, opts *discovery.Options) (InfoSlice, error) {
-	id, ok := peerID(opts)
-	if !ok {
-		return nil, errors.New("ring topology requires option 'WithPeerID'")
+type SelectRing struct{ SelectAll }
+
+func (s SelectRing) Select(ctx context.Context, ns Namespace, local *peer.AddrInfo, opts *discovery.Options) (InfoSlice, error) {
+	peers := s.load(ns, local)
+	gt := peers.Filter(func(info *peer.AddrInfo) bool {
+		return info.ID > local.ID
+	})
+
+	// largest peer?
+	if len(gt) == 0 {
+		return peers[0:1], nil // 'peers' is already sorted
 	}
 
-	var (
-		is       = ns.Peers()
-		neighbor *peer.AddrInfo
-	)
-
-	for i, info := range is {
-		if id != info.ID {
-			continue
-		}
-
-		// last peer?
-		if i == len(is)-1 {
-			neighbor = is[0] // wrap around to the beginning of the slice
-			break
-		}
-
-		neighbor = is[i+1]
-	}
-
-	if neighbor == nil {
-		return nil, errors.New("peer not in environment")
-	}
-
-	return InfoSlice{neighbor}, nil
+	return gt[0:1], nil
 }
 
 type SelectRandom struct {
@@ -61,32 +51,18 @@ type SelectRandom struct {
 	Src  rand.Source
 
 	loader
-	nopOptionSetter
+	SelectAll
 }
 
-func (r *SelectRandom) Select(_ context.Context, ns Namespace, opts *discovery.Options) (InfoSlice, error) {
+func (r *SelectRandom) Select(_ context.Context, ns Namespace, local *peer.AddrInfo, opts *discovery.Options) (InfoSlice, error) {
 	r.init.Do(func() {
 		if r.loader = (globalShuffleLoader{}); r.Src != nil {
 			r.loader = &shuffleLoader{r: rand.New(r.Src)}
 		}
 	})
 
-	return limit(opts, r.load(ns)), nil
+	return limit(opts, r.load(ns, local)), nil
 }
-
-func WithPeerID(id peer.ID) discovery.Option {
-	return func(opts *discovery.Options) error {
-		opts.Other[keyPeerID] = id
-		return nil
-	}
-}
-
-type key uint8
-
-const (
-	keyNamespace key = iota
-	keyPeerID
-)
 
 func limit(opts *discovery.Options, as InfoSlice) InfoSlice {
 	if opts.Limit == 0 || opts.Limit >= len(as) {
@@ -96,26 +72,30 @@ func limit(opts *discovery.Options, as InfoSlice) InfoSlice {
 	return as[:opts.Limit]
 }
 
-func peerID(opts *discovery.Options) (peer.ID, bool) {
-	if v, ok := opts.Other[keyPeerID]; ok {
-		return v.(peer.ID), true
-	}
-
-	return "", false
+type loader interface {
+	load(Namespace, *peer.AddrInfo) InfoSlice
 }
 
-type nopOptionSetter struct{}
+// sortedLoader is embedded in various loaders/topologies (especially defaultLoader)
+// in order to ensure reproducibility across runs.
+func loadsort(ps interface{ Peers() InfoSlice }) InfoSlice {
+	is := ps.Peers()
+	sort.Sort(is)
+	return is
+}
 
-func (nopOptionSetter) SetDefaultOptions(*discovery.Options) error { return nil }
+// defaultLoader removes the local peer from the results
+type defaultLoader struct{}
 
-type loader interface {
-	load(Namespace) InfoSlice
+func (defaultLoader) load(ps interface{ Peers() InfoSlice }, local *peer.AddrInfo) InfoSlice {
+	return loadsort(ps).
+		Filter(func(info *peer.AddrInfo) bool { return info.ID != local.ID })
 }
 
 type globalShuffleLoader struct{}
 
-func (globalShuffleLoader) load(ns Namespace) InfoSlice {
-	return loadAndShuffle(ns, rand.Shuffle)
+func (globalShuffleLoader) load(ns Namespace, local *peer.AddrInfo) InfoSlice {
+	return loadAndShuffle(ns, local, rand.Shuffle)
 }
 
 type shuffleLoader struct {
@@ -123,15 +103,15 @@ type shuffleLoader struct {
 	r  *rand.Rand
 }
 
-func (loader *shuffleLoader) load(ns Namespace) InfoSlice {
+func (loader *shuffleLoader) load(ns Namespace, local *peer.AddrInfo) InfoSlice {
 	loader.mu.Lock()
 	defer loader.mu.Unlock()
 
-	return loadAndShuffle(ns, loader.r.Shuffle)
+	return loadAndShuffle(ns, local, loader.r.Shuffle)
 }
 
-func loadAndShuffle(ns Namespace, shuffle func(int, func(i, j int))) InfoSlice {
-	as := ns.Peers()
+func loadAndShuffle(ns Namespace, local *peer.AddrInfo, shuffle func(int, func(i, j int))) InfoSlice {
+	as := defaultLoader{}.load(ns, local)
 	shuffle(len(as), as.Swap)
 	return as
 }

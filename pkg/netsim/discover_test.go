@@ -1,262 +1,147 @@
 package netsim
 
-// func TestDiscovery(t *testing.T) {
-// 	t.Parallel()
-// 	t.Helper()
+import (
+	"context"
+	"errors"
+	"fmt"
+	"math/rand"
+	"testing"
 
-// 	t.Run("DefaultOptionErrorFails", func(t *testing.T) {
-// 		t.Parallel()
+	"github.com/libp2p/go-libp2p-core/discovery"
+	"github.com/libp2p/go-libp2p-core/peer"
+	inproc "github.com/lthibault/go-libp2p-inproc-transport"
+	"github.com/mr-tron/base58"
+	"github.com/multiformats/go-multiaddr"
+	"github.com/multiformats/go-multihash"
+	"github.com/stretchr/testify/require"
+	"github.com/wetware/matrix/pkg/clock"
+)
 
-// 		d := discoveryService{topo: failDefaultOptions{}}
-// 		peers, err := d.FindPeers(context.Background(), "")
-// 		require.EqualError(t, err, "test")
-// 		require.Nil(t, peers)
-// 	})
+const n = 10
 
-// 	t.Run("BadOptionFails", func(t *testing.T) {
-// 		t.Parallel()
+func TestDiscovery(t *testing.T) {
+	t.Parallel()
+	t.Helper()
 
-// 		var d discoveryService
-// 		peers, err := d.FindPeers(context.Background(), "",
-// 			func(*discovery.Options) error { return errors.New("test") })
-// 		require.EqualError(t, err, "test")
-// 		require.Nil(t, peers)
-// 	})
+	t.Run("DefaultOptionErrorFails", func(t *testing.T) {
+		t.Parallel()
 
-// 	t.Run("ValidationErrorFails", func(t *testing.T) {
-// 		t.Parallel()
+		d := DiscoveryService{
+			NS:   nsmap(clock.New()),
+			Topo: failDefaultOptions{},
+			Info: randinfo(),
+		}
+		peers, err := d.FindPeers(context.Background(), "")
+		require.EqualError(t, err, "test")
+		require.Nil(t, peers)
+	})
 
-// 		d := discoveryService{topo: failValidaton{}}
-// 		peers, err := d.FindPeers(context.Background(), "")
-// 		require.EqualError(t, err, "test")
-// 		require.Nil(t, peers)
-// 	})
+	t.Run("BadOptionFails", func(t *testing.T) {
+		t.Parallel()
 
-// 	t.Run("Succeed", func(t *testing.T) {
-// 		t.Parallel()
+		d := DiscoveryService{
+			NS:   nsmap(clock.New()),
+			Topo: SelectAll{},
+			Info: randinfo(),
+		}
+		peers, err := d.FindPeers(context.Background(), "",
+			func(*discovery.Options) error { return errors.New("test") })
+		require.EqualError(t, err, "test")
+		require.Nil(t, peers)
+	})
 
-// 		const n = 10
-// 		newTestEnv(n)
+	t.Run("ValidationErrorFails", func(t *testing.T) {
+		t.Parallel()
 
-// 		d := discoveryService{
-// 			Env:      newTestEnv(n),
-// 			Strategy: netsim.SelectAll{},
-// 		}
+		d := DiscoveryService{
+			NS:   nsmap(clock.New()),
+			Topo: failValidaton{},
+			Info: randinfo(),
+		}
+		peers, err := d.FindPeers(context.Background(), "")
+		require.EqualError(t, err, "test")
+		require.Nil(t, peers)
+	})
 
-// 		peers, err := d.FindPeers(context.Background(), "")
-// 		require.NoError(t, err)
-// 		require.Len(t, peers, n)
-// 	})
-// }
+	t.Run("Succeed", func(t *testing.T) {
+		t.Parallel()
 
-// func TestStrategy(t *testing.T) {
-// 	t.Parallel()
-// 	t.Helper()
+		ns := newTestNs(clock.New(), "", n)
 
-// 	const n = 10
-// 	env := newTestEnv(n)
+		d := DiscoveryService{
+			NS:   ns,
+			Topo: SelectAll{},
+			Info: randinfo(),
+		}
 
-// 	t.Run("SelectAll", func(t *testing.T) {
-// 		t.Parallel()
-// 		t.Helper()
+		peers, err := d.FindPeers(context.Background(), "")
+		require.NoError(t, err)
+		require.Len(t, peers, n)
+	})
+}
 
-// 		t.Run("Limit", func(t *testing.T) {
-// 			t.Parallel()
+func newTestNs(t Timer, ns string, n int) NamespaceProvider {
+	p := nsmap(t)
+	for i := 0; i < n; i++ {
+		p.LoadOrCreate(ns).Upsert(randinfo(), &discovery.Options{Ttl: DefaultTTL})
+	}
+	return p
+}
 
-// 			const limit = 5
+func randinfo() *peer.AddrInfo {
+	id := randID()
+	return &peer.AddrInfo{
+		ID:    id,
+		Addrs: []multiaddr.Multiaddr{newAddr(id)},
+	}
+}
 
-// 			var s netsim.SelectAll
+func newAddr(id peer.ID) multiaddr.Multiaddr {
+	ma, err := inproc.ResolveString("/inproc/~")
+	if err != nil {
+		panic(err)
+	}
 
-// 			as, err := runStrategy(env, s, discovery.Limit(limit))
-// 			require.NoError(t, err)
+	return ma.Encapsulate(multiaddr.StringCast(fmt.Sprintf("/p2p/%s", id)))
+}
 
-// 			require.Subset(t, env.List(), as)
-// 			require.Len(t, as, limit)
+func randID() peer.ID {
+	return newID(randStr(5))
+}
 
-// 			peers := env.List()
-// 			sort.Sort(peers)
-// 			assert.Equal(t, peers[:limit], as)
-// 		})
-// 	})
+func randStr(n int) string {
+	const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
-// 	t.Run("SelectRandom", func(t *testing.T) {
-// 		t.Parallel()
-// 		t.Helper()
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = rune(alphabet[rand.Intn(len(alphabet))])
+	}
 
-// 		t.Run("GlobalSource", func(t *testing.T) {
-// 			t.Parallel()
+	return string(b)
+}
 
-// 			var s netsim.SelectRandom
-// 			as, err := runStrategy(env, &s)
-// 			require.NoError(t, err)
+func hash(b []byte) []byte {
+	h, _ := multihash.Sum(b, multihash.SHA2_256, -1)
+	return []byte(h)
+}
 
-// 			require.ElementsMatch(t, env.List(), as)
-// 		})
+func newID(s string) peer.ID {
+	id, err := peer.Decode(base58.Encode(hash([]byte(s))))
+	if err != nil {
+		panic(err)
+	}
 
-// 		t.Run("Reproducible", func(t *testing.T) {
-// 			t.Parallel()
+	return id
+}
 
-// 			as0, err := runStrategy(env, &netsim.SelectRandom{
-// 				Src: rand.NewSource(42),
-// 			})
-// 			require.NoError(t, err)
+type failValidaton struct{ SelectAll }
 
-// 			as1, err := runStrategy(env, &netsim.SelectRandom{
-// 				Src: rand.NewSource(42),
-// 			})
-// 			require.NoError(t, err)
+func (failValidaton) Validate(*discovery.Options) error {
+	return errors.New("test")
+}
 
-// 			require.ElementsMatch(t, as0, as1)
-// 			require.Equal(t, as0, as1)
-// 		})
-// 	})
+type failDefaultOptions struct{ SelectAll }
 
-// 	t.Run("SelectRing", func(t *testing.T) {
-// 		t.Parallel()
-// 		t.Helper()
-
-// 		t.Run("MissingPeerIDFails", func(t *testing.T) {
-// 			t.Parallel()
-
-// 			var s netsim.SelectRing
-// 			as, err := runStrategy(env, s)
-// 			require.Error(t, err)
-// 			require.Nil(t, as)
-// 		})
-
-// 		t.Run("PeerNotInEnvironmentFails", func(t *testing.T) {
-// 			t.Parallel()
-
-// 			var s netsim.SelectRing
-// 			as, err := runStrategy(env, s, net.WithPeerID(randID()))
-// 			require.Error(t, err)
-// 			require.Nil(t, as)
-// 		})
-
-// 		t.Run("Succeeds", func(t *testing.T) {
-// 			t.Parallel()
-
-// 			var (
-// 				peers     = env.List()
-// 				neighbors = make(inproc.AddrSlice, len(peers))
-// 			)
-
-// 			sort.Sort(peers)
-
-// 			var g errgroup.Group
-// 			for i, a := range peers {
-// 				g.Go(func(i int, a multiaddr.Multiaddr) func() error {
-// 					return func() (err error) {
-// 						var (
-// 							info *peer.AddrInfo
-// 							s    netsim.SelectRing
-// 							as   inproc.AddrSlice
-// 						)
-// 						if info, err = peer.AddrInfoFromP2pAddr(a); err != nil {
-// 							return
-// 						}
-
-// 						if as, err = runStrategy(env, s, net.WithPeerID(info.ID)); err == nil {
-// 							neighbors[i] = as[0]
-// 						}
-
-// 						return
-// 					}
-// 				}(i, a))
-// 			}
-
-// 			require.NoError(t, g.Wait())
-// 			require.Equal(t, peers,
-// 				// same array, except that tail is appended to head.
-// 				append(neighbors[n-1:], neighbors[:n-1]...))
-// 		})
-// 	})
-// }
-
-// func runStrategy(env net.PeerListProvider, s net.Strategy, opt ...discovery.Option) (inproc.AddrSlice, error) {
-// 	opts := newOption()
-// 	if err := s.SetDefaultOptions(opts); err != nil {
-// 		return nil, err
-// 	}
-
-// 	for _, option := range opt {
-// 		if err := option(opts); err != nil {
-// 			return nil, err
-// 		}
-// 	}
-
-// 	// validate?
-// 	if v, ok := s.(interface {
-// 		Validate(*discovery.Options) error
-// 	}); ok {
-// 		if err := v.Validate(opts); err != nil {
-// 			return nil, err
-// 		}
-// 	}
-
-// 	return s.Select(context.Background(), opts, env)
-// }
-
-// func newOption() *discovery.Options {
-// 	return &discovery.Options{Other: make(map[interface{}]interface{})}
-// }
-
-// func newTestEnv(n int) inproc.Env {
-// 	env := inproc.NewEnv()
-// 	for i := 0; i < n; i++ {
-// 		if !env.Bind(newAddr(), new(inproc.Transport)) {
-// 			panic("failed to bind")
-// 		}
-// 	}
-// 	return env
-// }
-
-// func newAddr() multiaddr.Multiaddr {
-// 	ma, err := inproc.ResolveString("/inproc/~")
-// 	if err != nil {
-// 		panic(err)
-// 	}
-
-// 	return ma.Encapsulate(multiaddr.StringCast(fmt.Sprintf("/p2p/%s", randID())))
-// }
-
-// func randID() peer.ID {
-// 	return newID(randStr(5))
-// }
-
-// func randStr(n int) string {
-// 	const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-
-// 	b := make([]rune, n)
-// 	for i := range b {
-// 		b[i] = rune(alphabet[rand.Intn(len(alphabet))])
-// 	}
-
-// 	return string(b)
-// }
-
-// func hash(b []byte) []byte {
-// 	h, _ := multihash.Sum(b, multihash.SHA2_256, -1)
-// 	return []byte(h)
-// }
-
-// func newID(s string) peer.ID {
-// 	id, err := peer.Decode(base58.Encode(hash([]byte(s))))
-// 	if err != nil {
-// 		panic(err)
-// 	}
-
-// 	return id
-// }
-
-// type failValidaton struct{ netsim.SelectAll }
-
-// func (failValidaton) Validate(*discovery.Options) error {
-// 	return errors.New("test")
-// }
-
-// type failDefaultOptions struct{ netsim.SelectAll }
-
-// func (failDefaultOptions) SetDefaultOptions(*discovery.Options) error {
-// 	return errors.New("test")
-// }
+func (failDefaultOptions) SetDefaultOptions(*discovery.Options) error {
+	return errors.New("test")
+}
