@@ -44,8 +44,7 @@ func main() {
 	*/
 	sim.Op(mx.Announce(nil, ns)).
 		Then(mx.Discover(nil, ns)).
-		Call(ctx, h0, h1).
-		Must()
+		Must(ctx, h0, h1)
 
 	s, err := h1.NewStream(ctx, h0.ID(), echo)
 	maybeFatal(err)

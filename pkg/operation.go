@@ -46,27 +46,14 @@ func (op Op) Then(call OpFunc) Op {
 	return Op{sim: op.sim, call: op.call.Then(call)}
 }
 
-func (op Op) Call(ctx context.Context, hs ...host.Host) OpCall {
-	return func() error {
-		_, err := op.call(op.sim)(ctx)(hs)
-		return err
-	}
+func (op Op) Must(ctx context.Context, hs ...host.Host) HostSlice {
+	hs, err := op.Call(ctx, hs...)
+	must(err)
+	return hs
 }
 
-type OpCall func() error
-
-func (call OpCall) Err() error {
-	if call == nil {
-		return nil
-	}
-
-	return call()
-}
-
-func (call OpCall) Must() {
-	if err := call(); err != nil {
-		panic(err)
-	}
+func (op Op) Call(ctx context.Context, hs ...host.Host) (HostSlice, error) {
+	return op.call(op.sim)(ctx)(hs)
 }
 
 func (hs HostSlice) Len() int           { return len(hs) }

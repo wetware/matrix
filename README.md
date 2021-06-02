@@ -95,8 +95,7 @@ h1 := sim.MustHost(ctx)
 */
 sim.Op(mx.Announce(nil, ns)).
     Then(mx.Discover(nil, ns)).
-    Call(ctx, h0, h1).
-    Must()
+    Must(ctx, h0, h1)
 
 /*
     h0 and h1 are now connected to each other!

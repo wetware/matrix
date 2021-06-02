@@ -1,12 +1,33 @@
 package testutil
 
 import (
+	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p/config"
 	mock_mx "github.com/wetware/matrix/internal/mock/pkg/matrix"
 )
+
+func NewHostFactory(ctrl *gomock.Controller) *mock_mx.MockHostFactory {
+	var ctx = reflect.TypeOf((*context.Context)(nil)).Elem()
+
+	f := mock_mx.NewMockHostFactory(ctrl)
+	f.EXPECT().
+		NewHost(
+			gomock.AssignableToTypeOf(ctx),
+			gomock.AssignableToTypeOf([]config.Option(nil)),
+		).
+		DoAndReturn(func(ctx context.Context, opt []config.Option) (host.Host, error) {
+			return NewHost(ctrl), nil
+		}).
+		AnyTimes()
+
+	return f
+}
 
 func NewClock(ctrl *gomock.Controller, accuracy time.Duration, onTick func(t time.Time)) *mock_mx.MockClockController {
 	c := mock_mx.NewMockClockController(ctrl)
