@@ -56,6 +56,8 @@ func (op Op) Call(ctx context.Context, hs ...host.Host) (HostSlice, error) {
 	return op.call(op.sim)(ctx)(hs)
 }
 
+type HostSlice []host.Host
+
 func (hs HostSlice) Len() int           { return len(hs) }
 func (hs HostSlice) Less(i, j int) bool { return hs[i].ID() < hs[j].ID() }
 func (hs HostSlice) Swap(i, j int)      { hs[i], hs[j] = hs[j], hs[i] }
