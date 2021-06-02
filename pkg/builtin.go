@@ -18,12 +18,8 @@ type (
 
 // Fail is an operation that always fails with the supplied error.
 func Fail(err error) OpFunc {
-	return func(Simulation) func(context.Context) Maybe {
-		return func(context.Context) Maybe {
-			return func(HostSlice) (HostSlice, error) {
-				return nil, err
-			}
-		}
+	return func(context.Context, Simulation, HostSlice) (HostSlice, error) {
+		return nil, err
 	}
 }
 
@@ -46,12 +42,8 @@ func Go(f MapFunc) OpFunc {
 //
 // HostSlice -> HostSlice
 func Select(f SelectFunc) OpFunc {
-	return func(sim Simulation) func(ctx context.Context) Maybe {
-		return func(ctx context.Context) Maybe {
-			return func(hs HostSlice) (HostSlice, error) {
-				return f(ctx, sim, hs)
-			}
-		}
+	return func(ctx context.Context, sim Simulation, hs HostSlice) (HostSlice, error) {
+		return f(ctx, sim, hs)
 	}
 }
 
@@ -101,15 +93,11 @@ func connect(ctx context.Context, h host.Host, info peer.AddrInfo) func() error 
 }
 
 func mapper(f func(hs HostSlice, hf func(MapFunc) func(int, host.Host) error) error) OpFunc {
-	return func(sim Simulation) func(ctx context.Context) Maybe {
-		return func(ctx context.Context) Maybe {
-			return func(hs HostSlice) (HostSlice, error) {
-				return hs, f(hs, func(mf MapFunc) func(int, host.Host) error {
-					return func(i int, h host.Host) error {
-						return mf(ctx, sim, i, h)
-					}
-				})
+	return func(ctx context.Context, sim Simulation, hs HostSlice) (HostSlice, error) {
+		return hs, f(hs, func(mf MapFunc) func(int, host.Host) error {
+			return func(i int, h host.Host) error {
+				return mf(ctx, sim, i, h)
 			}
-		}
+		})
 	}
 }

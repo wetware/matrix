@@ -7,33 +7,19 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type Maybe func(HostSlice) (HostSlice, error)
-
-func (m Maybe) Then(next Maybe) Maybe {
-	if m == nil {
-		return next
-	}
-
-	return func(hs HostSlice) (_ HostSlice, err error) {
-		if hs, err = m(hs); err == nil {
-			return next(hs)
-		}
-
-		return
-	}
-}
-
-type OpFunc func(s Simulation) func(ctx context.Context) Maybe
+type OpFunc func(ctx context.Context, sim Simulation, hs HostSlice) (HostSlice, error)
 
 func (fn OpFunc) Then(next OpFunc) OpFunc {
 	if fn == nil {
 		return next
 	}
 
-	return func(s Simulation) func(context.Context) Maybe {
-		return func(ctx context.Context) Maybe {
-			return fn(s)(ctx).Then(next(s)(ctx))
+	return func(ctx context.Context, sim Simulation, hs HostSlice) (_ HostSlice, err error) {
+		if hs, err = fn(ctx, sim, hs); err != nil {
+			return hs, err
 		}
+
+		return next(ctx, sim, hs)
 	}
 }
 
@@ -53,7 +39,7 @@ func (op Op) Must(ctx context.Context, hs ...host.Host) HostSlice {
 }
 
 func (op Op) Call(ctx context.Context, hs ...host.Host) (HostSlice, error) {
-	return op.call(op.sim)(ctx)(hs)
+	return op.call(ctx, op.sim, hs)
 }
 
 type HostSlice []host.Host
