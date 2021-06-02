@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/require"
 	"github.com/wetware/matrix/internal/testutil"
-	"github.com/wetware/matrix/pkg/clock"
 	"github.com/wetware/matrix/pkg/namespace"
 	"github.com/wetware/matrix/pkg/netsim"
 )
@@ -21,14 +21,22 @@ func TestAdvertise(t *testing.T) {
 	t.Parallel()
 	t.Helper()
 
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	t.Run("BadOptionFails", func(t *testing.T) {
 		t.Parallel()
 
+		c := testutil.NewClock(ctrl, 0, nil)
+		c.EXPECT().
+			After(netsim.DefaultTTL, gomock.All()).
+			Times(1)
+
 		d := netsim.DiscoveryService{
-			NS:   namespace.New(clock.New()),
+			NS:   namespace.New(c),
 			Topo: netsim.SelectAll{},
 			Info: testutil.RandInfo(),
 		}
@@ -41,7 +49,12 @@ func TestAdvertise(t *testing.T) {
 	t.Run("DefaultTTL", func(t *testing.T) {
 		t.Parallel()
 
-		ns := namespace.New(clock.New())
+		c := testutil.NewClock(ctrl, 0, nil)
+		c.EXPECT().
+			After(netsim.DefaultTTL, gomock.All()).
+			Times(1)
+
+		ns := namespace.New(c)
 		pi := testutil.RandInfo()
 		d := netsim.DiscoveryService{
 			NS:   ns,
@@ -65,7 +78,12 @@ func TestAdvertise(t *testing.T) {
 
 		const customTTL = time.Second
 
-		ns := namespace.New(clock.New())
+		c := testutil.NewClock(ctrl, 0, nil)
+		c.EXPECT().
+			After(customTTL, gomock.All()).
+			Times(1)
+
+		ns := namespace.New(c)
 		pi := testutil.RandInfo()
 		d := netsim.DiscoveryService{
 			NS:   ns,
@@ -89,11 +107,19 @@ func TestFindPeers(t *testing.T) {
 	t.Parallel()
 	t.Helper()
 
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	t.Run("DefaultOptionErrorFails", func(t *testing.T) {
 		t.Parallel()
 
+		c := testutil.NewClock(ctrl, 0, nil)
+		c.EXPECT().
+			After(netsim.DefaultTTL, gomock.All()).
+			Times(1)
+
 		d := netsim.DiscoveryService{
-			NS:   namespace.New(clock.New()),
+			NS:   namespace.New(c),
 			Topo: failDefaultOptions{},
 			Info: testutil.RandInfo(),
 		}
@@ -105,8 +131,13 @@ func TestFindPeers(t *testing.T) {
 	t.Run("BadOptionFails", func(t *testing.T) {
 		t.Parallel()
 
+		c := testutil.NewClock(ctrl, 0, nil)
+		c.EXPECT().
+			After(netsim.DefaultTTL, gomock.All()).
+			Times(1)
+
 		d := netsim.DiscoveryService{
-			NS:   namespace.New(clock.New()),
+			NS:   namespace.New(c),
 			Topo: netsim.SelectAll{},
 			Info: testutil.RandInfo(),
 		}
@@ -119,8 +150,13 @@ func TestFindPeers(t *testing.T) {
 	t.Run("ValidationErrorFails", func(t *testing.T) {
 		t.Parallel()
 
+		c := testutil.NewClock(ctrl, 0, nil)
+		c.EXPECT().
+			After(netsim.DefaultTTL, gomock.All()).
+			Times(1)
+
 		d := netsim.DiscoveryService{
-			NS:   namespace.New(clock.New()),
+			NS:   namespace.New(c),
 			Topo: failValidaton{},
 			Info: testutil.RandInfo(),
 		}
@@ -136,7 +172,12 @@ func TestFindPeers(t *testing.T) {
 		t.Run("FoundPeers", func(t *testing.T) {
 			t.Parallel()
 
-			ns := newTestNs(clock.New(), "", n)
+			c := testutil.NewClock(ctrl, 0, nil)
+			c.EXPECT().
+				After(netsim.DefaultTTL, gomock.All()).
+				Times(n)
+
+			ns := newTestNs(c, "", n)
 
 			d := netsim.DiscoveryService{
 				NS:   ns,
@@ -152,8 +193,13 @@ func TestFindPeers(t *testing.T) {
 		t.Run("NoPeers", func(t *testing.T) {
 			t.Parallel()
 
+			c := testutil.NewClock(ctrl, 0, nil)
+			c.EXPECT().
+				After(netsim.DefaultTTL, gomock.All()).
+				Times(1)
+
 			d := netsim.DiscoveryService{
-				NS:   namespace.New(clock.New()),
+				NS:   namespace.New(c),
 				Topo: netsim.SelectAll{},
 				Info: testutil.RandInfo(),
 			}

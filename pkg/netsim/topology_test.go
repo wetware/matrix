@@ -6,11 +6,11 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/require"
 	"github.com/wetware/matrix/internal/testutil"
-	"github.com/wetware/matrix/pkg/clock"
 	"github.com/wetware/matrix/pkg/netsim"
 	"golang.org/x/sync/errgroup"
 )
@@ -19,8 +19,16 @@ func TestTopology(t *testing.T) {
 	t.Parallel()
 	t.Helper()
 
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	c := testutil.NewClock(ctrl, 0, nil)
+	c.EXPECT().
+		After(netsim.DefaultTTL, gomock.All()).
+		Times(n)
+
 	var (
-		p     = newTestNs(clock.New(), "", n)
+		p     = newTestNs(c, "", n)
 		s     = p.LoadOrCreate("")
 		local = testutil.RandInfo()
 	)
