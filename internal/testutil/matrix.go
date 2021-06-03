@@ -9,7 +9,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p/config"
-	mock_mx "github.com/wetware/matrix/internal/mock/pkg/matrix"
+	mock_mx "github.com/wetware/matrix/internal/mock/pkg"
 )
 
 func NewHostFactory(ctrl *gomock.Controller) *mock_mx.MockHostFactory {

@@ -1,3 +1,5 @@
+//go:generate mockgen -destination ../../internal/mock/pkg/netsim/matrix.go github.com/wetware/matrix/pkg/netsim Scope,NamespaceProvider
+
 package netsim
 
 import (

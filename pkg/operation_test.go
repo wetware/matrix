@@ -6,13 +6,10 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/stretchr/testify/require"
 	"github.com/wetware/matrix/internal/testutil"
 	mx "github.com/wetware/matrix/pkg"
-	"github.com/wetware/matrix/pkg/netsim"
 )
 
 func TestOperation(t *testing.T) {
@@ -121,19 +118,6 @@ func TestOperation(t *testing.T) {
 
 		require.Len(t, even, len(hs)/2)
 	})
-
-	t.Run("DiscoverReturnsTopologyErrors", func(t *testing.T) {
-		t.Parallel()
-
-		sim := mx.New(ctx,
-			mx.WithClock(testutil.NewClock(ctrl, 0, nil)),
-			mx.WithHostFactory(testutil.NewHostFactory(ctrl)))
-
-		res, err := mx.Map(mx.Discover(sim, errTopology{}, "")).
-			EvalArgs(ctx, hs[0])
-		require.EqualError(t, err, "test")
-		require.Nil(t, res)
-	})
 }
 
 func mkHostSlice(ctx context.Context, ctrl *gomock.Controller) mx.Selection {
@@ -142,14 +126,4 @@ func mkHostSlice(ctx context.Context, ctrl *gomock.Controller) mx.Selection {
 		mx.WithHostFactory(testutil.NewHostFactory(ctrl))).
 		MustHostSet(ctx, n)
 
-}
-
-type errTopology struct{}
-
-func (errTopology) SetDefaultOptions(*discovery.Options) error {
-	return errors.New("test")
-}
-
-func (errTopology) Select(context.Context, netsim.Scope, *peer.AddrInfo, *discovery.Options) (netsim.InfoSlice, error) {
-	panic("unreachable")
 }

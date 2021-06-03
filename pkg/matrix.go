@@ -1,4 +1,4 @@
-//go:generate mockgen -destination ../internal/mock/pkg/matrix/matrix.go github.com/wetware/matrix/pkg ClockController,HostFactory
+//go:generate mockgen -destination ../internal/mock/pkg/matrix.go github.com/wetware/matrix/pkg ClockController,HostFactory
 
 package mx
 

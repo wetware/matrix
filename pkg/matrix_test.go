@@ -11,7 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p/config"
 	"github.com/stretchr/testify/require"
 
-	mock_mx "github.com/wetware/matrix/internal/mock/pkg/matrix"
+	mock_mx "github.com/wetware/matrix/internal/mock/pkg"
 	"github.com/wetware/matrix/internal/testutil"
 	mx "github.com/wetware/matrix/pkg"
 	"github.com/wetware/matrix/pkg/clock"
@@ -84,25 +84,4 @@ func TestSimulation(t *testing.T) {
 		require.Equal(t, sim.Clock().Accuracy(), clock.DefaultAccuracy)
 	})
 
-}
-
-func TestNewDiscovery(t *testing.T) {
-	t.Parallel()
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	sim := mx.New(ctx,
-		mx.WithClock(testutil.NewClock(ctrl, 0, nil)),
-		mx.WithHostFactory(testutil.NewHostFactory(ctrl)))
-
-	h := sim.MustHost(ctx)
-
-	svc := sim.NewDiscovery(h, nil)
-	require.NotNil(t, svc)
-	require.NotNil(t, svc.Topo)
-	require.Equal(t, svc.Info, host.InfoFromHost(h))
 }

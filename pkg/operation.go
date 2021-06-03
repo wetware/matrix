@@ -3,18 +3,11 @@ package mx
 import (
 	"context"
 
-	"golang.org/x/sync/errgroup"
-
-	"github.com/libp2p/go-libp2p-core/discovery"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/wetware/matrix/pkg/netsim"
 )
 
-type (
-	MapFunc    func(ctx context.Context, i int, h host.Host) error
-	FilterFunc func(int, host.Host) bool
-)
+type FilterFunc func(int, host.Host) bool
 
 func Select(f SelectFunc) Op {
 	return func(op Op) (SelectFunc, Op) {
@@ -42,33 +35,6 @@ func Filter(f FilterFunc) Op {
 	return Select(func(ctx context.Context, hs Selection) (Selection, error) {
 		return hs.Filter(f), nil
 	})
-}
-
-// Announce each host in the current selection using the supplied topology.
-func Announce(sim Simulation, t netsim.Topology, ns string, opt ...discovery.Option) MapFunc {
-	return func(ctx context.Context, _ int, h host.Host) (err error) {
-		_, err = sim.NewDiscovery(h, t).Advertise(ctx, ns, opt...)
-		return
-	}
-}
-
-// Discover peers for each host in the current selection using the supplied topology.
-func Discover(sim Simulation, t netsim.Topology, ns string, opt ...discovery.Option) MapFunc {
-	return func(ctx context.Context, _ int, h host.Host) error {
-		ps, err := sim.NewDiscovery(h, t).FindPeers(ctx, ns, opt...)
-		if err != nil {
-			return err
-		}
-
-		var g errgroup.Group
-		for info := range ps {
-			if info.ID != h.ID() {
-				g.Go(connect(ctx, h, info))
-			}
-		}
-
-		return g.Wait()
-	}
 }
 
 func connect(ctx context.Context, h host.Host, info peer.AddrInfo) func() error {
@@ -150,4 +116,16 @@ func (op Op) EvalArgs(ctx context.Context, hs ...host.Host) (Selection, error) {
 
 func (op Op) MustArgs(ctx context.Context, hs ...host.Host) Selection {
 	return op.Must(ctx, Selection(hs))
+}
+
+type MapFunc func(ctx context.Context, i int, h host.Host) error
+
+func (f MapFunc) Then(fn MapFunc) MapFunc {
+	return func(ctx context.Context, i int, h host.Host) error {
+		if err := f(ctx, i, h); err != nil {
+			return err
+		}
+
+		return fn(ctx, i, h)
+	}
 }
