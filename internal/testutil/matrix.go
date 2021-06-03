@@ -30,14 +30,15 @@ func NewHostFactory(ctrl *gomock.Controller) *mock_mx.MockHostFactory {
 }
 
 func NewClock(ctrl *gomock.Controller, accuracy time.Duration, onTick func(t time.Time)) *mock_mx.MockClockController {
-	c := mock_mx.NewMockClockController(ctrl)
-
-	if onTick != nil {
-		c.EXPECT().
-			Advance(&monotonicTimeMatcher{}).
-			Do(onTick).
-			AnyTimes()
+	if onTick == nil {
+		onTick = func(time.Time) {}
 	}
+
+	c := mock_mx.NewMockClockController(ctrl)
+	c.EXPECT().
+		Advance(&monotonicTimeMatcher{}).
+		Do(onTick).
+		AnyTimes()
 
 	if accuracy == 0 {
 		accuracy = time.Millisecond * 10
