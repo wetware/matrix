@@ -53,7 +53,7 @@ Matrix is a library for writing unit-tests, benchmarks and exploratory simulatio
 
 Matrix runs your code using actual libp2p code.  It configures [hosts](https://pkg.go.dev/github.com/libp2p/go-libp2p-core/host#Host) to use an [in-process transport](https://godoc.org/github.com/lthibault/go-libp2p-inproc-transport), which allows them to communicate without the network.  **Everything else is exactly the same.**
 
-Additionally, Matrix provides some utilities to facilitate test setup.  For example, the [`discover`](pkg.go.dev/github.com/wetware/matrix/pkg/discover) package provides a specialized [`discovery.Discovery`](https://pkg.go.dev/github.com/libp2p/go-libp2p-core/discovery#Discovery) implementation that allows you to arrange hosts in a specific topology (e.g. a ring).
+Additionally, Matrix provides some utilities to facilitate test setup.  For example, the [`netsim`](pkg.go.dev/github.com/wetware/matrix/pkg/netsim) package provides a specialized [`discovery.Discovery`](https://pkg.go.dev/github.com/libp2p/go-libp2p-core/discovery#Discovery) implementation that allows you to arrange hosts in a specific topology (e.g. a ring).
 
 But there's more!  Just like Testground, Matrix provides support for sophisticated traffic shaping.
 
