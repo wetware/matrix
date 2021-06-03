@@ -90,10 +90,14 @@ h1 := sim.MustHost(ctx)
     Matrix provides the Operations API, which allows developers
     to compose operations on collections of hosts.
 
-    Here, we're using a simple two-stage pipeline to announce
-    each peer to the namespace and connect them to each other.
+    Here, we're using the 'Topology' operation to arrange our
+    hosts in a ring configuration.  See examples/selectors to
+    see how operations can be chained.
+
+    Note that the Operations API is orthogonal to simulation.
+    You do not have to use operations if you don't like them.
 */
-mx.Go(mx.NewTopology(sim, netsim.SelectRing{}, ns)).
+mx.Topology(sim, netsim.SelectRing{}, ns)).
 		MustArgs(ctx, h0, h1)
 
 /*
