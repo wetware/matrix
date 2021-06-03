@@ -11,7 +11,7 @@ import (
 )
 
 type (
-	MapFunc    func(int, host.Host) error
+	MapFunc    func(context.Context, int, host.Host) error
 	FilterFunc func(int, host.Host) bool
 )
 
@@ -22,19 +22,19 @@ func Op(f OpFunc) Operation {
 }
 
 func Just(hs HostSlice) OpFunc {
-	return func(HostSlice) (HostSlice, error) {
+	return func(context.Context, HostSlice) (HostSlice, error) {
 		return hs, nil
 	}
 }
 
 func Fail(err error) OpFunc {
-	return func(HostSlice) (HostSlice, error) {
+	return func(context.Context, HostSlice) (HostSlice, error) {
 		return nil, err
 	}
 }
 
 func Nop() OpFunc {
-	return func(hs HostSlice) (HostSlice, error) {
+	return func(_ context.Context, hs HostSlice) (HostSlice, error) {
 		return hs, nil
 	}
 }
@@ -72,8 +72,8 @@ func Go(f MapFunc) OpFunc {
 // }
 
 // Announce each host in the current selection using the supplied topology.
-func Announce(ctx context.Context, sim Simulation, t netsim.Topology, ns string, opt ...discovery.Option) OpFunc {
-	return Go(func(i int, h host.Host) error {
+func Announce(sim Simulation, t netsim.Topology, ns string, opt ...discovery.Option) OpFunc {
+	return Go(func(ctx context.Context, i int, h host.Host) error {
 		var d = sim.NewDiscovery(h, t)
 		_, err := d.Advertise(ctx, ns, opt...)
 		return err
@@ -81,8 +81,8 @@ func Announce(ctx context.Context, sim Simulation, t netsim.Topology, ns string,
 }
 
 // Discover peers for each host in the current selection using the supplied topology.
-func Discover(ctx context.Context, sim Simulation, t netsim.Topology, ns string, opt ...discovery.Option) OpFunc {
-	return Go(func(i int, h host.Host) (err error) {
+func Discover(sim Simulation, t netsim.Topology, ns string, opt ...discovery.Option) OpFunc {
+	return Go(func(ctx context.Context, i int, h host.Host) (err error) {
 		var (
 			d  = sim.NewDiscovery(h, t)
 			g  errgroup.Group
@@ -109,10 +109,10 @@ func connect(ctx context.Context, h host.Host, info peer.AddrInfo) func() error 
 }
 
 func mapper(f func(hs HostSlice, hf func(MapFunc) func(int, host.Host) error) error) OpFunc {
-	return func(hs HostSlice) (HostSlice, error) {
+	return func(ctx context.Context, hs HostSlice) (HostSlice, error) {
 		return hs, f(hs, func(mf MapFunc) func(int, host.Host) error {
 			return func(i int, h host.Host) error {
-				return mf(i, h)
+				return mf(ctx, i, h)
 			}
 		})
 	}

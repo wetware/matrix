@@ -18,17 +18,20 @@ func TestOperation(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	hs := mkHostSlice(ctrl)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	hs := mkHostSlice(ctx, ctrl)
 
 	t.Run("Eval", func(t *testing.T) {
 		t.Parallel()
 
 		var called bool
 
-		res, err := mx.Op(func(hs mx.HostSlice) (mx.HostSlice, error) {
+		res, err := mx.Op(func(ctx context.Context, hs mx.HostSlice) (mx.HostSlice, error) {
 			called = true
 			return hs, nil
-		}).Eval(hs)
+		}).Eval(ctx, hs)
 
 		require.NoError(t, err)
 		require.True(t, called, "bound function not called")
@@ -46,13 +49,13 @@ func TestOperation(t *testing.T) {
 
 			res, err := mx.Op(mx.Nop()).
 				Bind(func(f mx.OpFunc) mx.Operation {
-					return f.Bind(func(got mx.HostSlice) (mx.HostSlice, error) {
+					return f.Bind(func(ctx context.Context, got mx.HostSlice) (mx.HostSlice, error) {
 						called = true
 						require.Len(t, got, n)
 						return hs, nil
 					})
 				}).
-				Eval(hs)
+				Eval(ctx, hs)
 
 			require.NoError(t, err)
 			require.True(t, called, "bound function not called")
@@ -71,16 +74,16 @@ func TestOperation(t *testing.T) {
 			require.NotPanics(t, func() {
 				res, err = mx.Op(mx.Just(hs)).
 					Bind(func(f mx.OpFunc) mx.Operation {
-						return f.Bind(func(mx.HostSlice) (mx.HostSlice, error) {
+						return f.Bind(func(context.Context, mx.HostSlice) (mx.HostSlice, error) {
 							return nil, errors.New("test")
 						})
 					}).
 					Bind(func(f mx.OpFunc) mx.Operation {
-						return f.Bind(func(mx.HostSlice) (mx.HostSlice, error) {
+						return f.Bind(func(context.Context, mx.HostSlice) (mx.HostSlice, error) {
 							panic("not aborted")
 						})
 					}).
-					Eval(hs)
+					Eval(ctx, hs)
 			})
 
 			require.Nil(t, res)
@@ -89,10 +92,10 @@ func TestOperation(t *testing.T) {
 	})
 }
 
-func mkHostSlice(ctrl *gomock.Controller) mx.HostSlice {
-	return mx.New(context.Background(),
+func mkHostSlice(ctx context.Context, ctrl *gomock.Controller) mx.HostSlice {
+	return mx.New(ctx,
 		mx.WithClock(testutil.NewClock(ctrl, 0, nil)),
 		mx.WithHostFactory(testutil.NewHostFactory(ctrl))).
-		MustHostSet(context.Background(), n)
+		MustHostSet(ctx, n)
 
 }
