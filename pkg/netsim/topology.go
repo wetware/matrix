@@ -34,6 +34,10 @@ type SelectRing struct{ SelectAll }
 
 func (t SelectRing) Select(ctx context.Context, s Scope, local *peer.AddrInfo, opts *discovery.Options) (InfoSlice, error) {
 	peers := t.load(s, local)
+	if len(peers) == 0 {
+		return peers, nil
+	}
+
 	gt := peers.Filter(func(info *peer.AddrInfo) bool {
 		return info.ID > local.ID
 	})

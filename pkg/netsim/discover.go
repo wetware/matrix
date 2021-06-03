@@ -39,8 +39,12 @@ func (d *DiscoveryService) FindPeers(ctx context.Context, ns string, opt ...disc
 		return nopchan, nil
 	}
 
-	as, err := d.Topo.Select(ctx, n, d.Info, opts)
-	return infochan(as), err
+	is, err := d.Topo.Select(ctx, n, d.Info, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return infochan(is), nil
 }
 
 func (d *DiscoveryService) Advertise(ctx context.Context, ns string, opt ...discovery.Option) (time.Duration, error) {

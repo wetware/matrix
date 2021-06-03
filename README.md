@@ -93,9 +93,8 @@ h1 := sim.MustHost(ctx)
     Here, we're using a simple two-stage pipeline to announce
     each peer to the namespace and connect them to each other.
 */
-sim.Op(mx.Announce(nil, ns)).
-    Then(mx.Discover(nil, ns)).
-    Must(ctx, h0, h1)
+mx.Go(mx.NewTopology(sim, netsim.SelectRing{}, ns)).
+		MustArgs(ctx, h0, h1)
 
 /*
     h0 and h1 are now connected to each other!
