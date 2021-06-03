@@ -36,7 +36,7 @@ func ExampleSimulation() {
 		}
 	})
 
-	mx.Go(mx.NewTopology(sim, netsim.SelectRing{}, ns)).
+	mx.Topology(sim, netsim.SelectRing{}, ns).
 		MustArgs(ctx, h0, h1)
 
 	s, err := h1.NewStream(ctx, h0.ID(), echo)

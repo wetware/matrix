@@ -36,10 +36,10 @@ func Discover(sim Simulation, t netsim.Topology, ns string, opt ...discovery.Opt
 	}
 }
 
-func NewTopology(sim Simulation, t netsim.Topology, ns string, opt ...discovery.Option) MapFunc {
-	return func(ctx context.Context, i int, h host.Host) error {
+func Topology(sim Simulation, t netsim.Topology, ns string, opt ...discovery.Option) Op {
+	return Go(func(ctx context.Context, i int, h host.Host) error {
 		build := Announce(sim, t, ns, opt...).
 			Then(Discover(sim, t, ns, opt...))
 		return build(ctx, i, h)
-	}
+	})
 }
