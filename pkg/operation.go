@@ -101,6 +101,11 @@ func (op Op) Eval(ctx context.Context, hs Selection) (out Selection, err error) 
 	return f(ctx, hs)
 }
 
+func (op Op) Err(ctx context.Context, hs Selection) (err error) {
+	_, err = op.Eval(ctx, hs)
+	return
+}
+
 func (op Op) Must(ctx context.Context, hs Selection) Selection {
 	hs, err := op.Eval(ctx, hs)
 	if err != nil {
@@ -111,11 +116,15 @@ func (op Op) Must(ctx context.Context, hs Selection) Selection {
 }
 
 func (op Op) EvalArgs(ctx context.Context, hs ...host.Host) (Selection, error) {
-	return op.Eval(ctx, Selection(hs))
+	return op.Eval(ctx, hs)
+}
+
+func (op Op) ErrArgs(ctx context.Context, hs ...host.Host) error {
+	return op.Err(ctx, hs)
 }
 
 func (op Op) MustArgs(ctx context.Context, hs ...host.Host) Selection {
-	return op.Must(ctx, Selection(hs))
+	return op.Must(ctx, hs)
 }
 
 type MapFunc func(ctx context.Context, i int, h host.Host) error
