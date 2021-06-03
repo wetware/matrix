@@ -7,13 +7,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// Nop returns the selection unchanged.
-func Nop() SelectFunc {
-	return func(_ context.Context, hs Selection) (Selection, error) {
-		return hs, nil
-	}
-}
-
 // Just discards the current selection and replaces it with hs.
 func Just(hs Selection) SelectFunc {
 	return func(context.Context, Selection) (Selection, error) {

@@ -48,7 +48,7 @@ func TestOperation(t *testing.T) {
 
 			var called bool
 
-			res, err := mx.Select(mx.Nop()).
+			res, err := mx.Nop().
 				Bind(func(f mx.SelectFunc) mx.Op {
 					return f.Bind(func(ctx context.Context, got mx.Selection) (mx.Selection, error) {
 						called = true
@@ -95,7 +95,7 @@ func TestOperation(t *testing.T) {
 	t.Run("Map", func(t *testing.T) {
 		t.Parallel()
 
-		res := mx.Select(mx.Nop()).Map(func(_ context.Context, _ int, h host.Host) error {
+		res := mx.Nop().Map(func(_ context.Context, _ int, h host.Host) error {
 			return nil
 		}).Must(ctx, hs)
 		require.ElementsMatch(t, hs, res)

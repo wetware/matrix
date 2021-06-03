@@ -9,6 +9,13 @@ import (
 
 type FilterFunc func(int, host.Host) bool
 
+// Nop returns the selection unchanged.
+func Nop() Op {
+	return Select(func(_ context.Context, hs Selection) (Selection, error) {
+		return hs, nil
+	})
+}
+
 func Select(f SelectFunc) Op {
 	return func(op Op) (SelectFunc, Op) {
 		return f, op
