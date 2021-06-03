@@ -6,7 +6,7 @@ type Option func(c *Clock)
 
 func WithAccuracy(d time.Duration) Option {
 	if d < 0 {
-		d = time.Millisecond * 10
+		d = DefaultAccuracy
 	}
 
 	return func(c *Clock) {

@@ -9,6 +9,8 @@ import (
 )
 
 const (
+	DefaultAccuracy = time.Millisecond * 10
+
 	nearShift  = 8
 	nearSize   = 1 << nearShift
 	levelShift = 6

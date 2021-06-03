@@ -1,60 +1,119 @@
 package mx_test
 
-// func TestPartition(t *testing.T) {
-// 	t.Parallel()
-// 	t.Helper()
+import (
+	"context"
+	"errors"
+	"testing"
 
-// 	ctrl := gomock.NewController(t)
-// 	defer ctrl.Finish()
+	"github.com/golang/mock/gomock"
+	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/stretchr/testify/require"
+	mx "github.com/wetware/matrix/pkg"
+)
 
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	defer cancel()
+func TestMap(t *testing.T) {
+	t.Parallel()
+	t.Helper()
 
-// 	sim := mx.New(ctx,
-// 		mx.WithClock(testutil.NewClock(ctrl, 0, nil)),
-// 		mx.WithHostFactory(testutil.NewHostFactory(ctrl)))
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-// 	hs := sim.MustHostSet(ctx, n)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-// 	t.Run("Num", func(t *testing.T) {
-// 		t.Parallel()
+	hs := mkHostSlice(ctx, ctrl)
 
-// 		for i := 0; i < n; i++ {
-// 			require.Equal(t, i, mx.Partition(i).Num())
-// 		}
-// 	})
+	t.Run("Succeed", func(t *testing.T) {
+		res := make(mx.Selection, len(hs))
+		mx.Map(func(_ context.Context, i int, h host.Host) error {
+			res[i] = h
+			return nil
+		}).Must(ctx, hs)
 
-// 	t.Run("Singletons", func(t *testing.T) {
-// 		t.Parallel()
+		require.ElementsMatch(t, hs, res)
+	})
 
-// 		p := mx.Partition(n)
+	t.Run("FailureAborts", func(t *testing.T) {
+		var check mx.Selection
+		res, err := mx.Map(func(_ context.Context, i int, h host.Host) error {
+			check = append(check, h)
+			return errors.New("test")
+		}).Eval(ctx, hs)
 
-// 		for i := 0; i < p.Num(); i++ {
-// 			res := sim.Op(p.At(i)).Must(ctx, hs...)
-// 			require.Len(t, res, 1)
-// 			require.Equal(t, hs[i], res[0])
-// 		}
-// 	})
+		require.EqualError(t, err, "test")
+		require.Nil(t, res)
+		require.ElementsMatch(t, mx.Selection{hs[0]}, check)
+	})
+}
 
-// 	t.Run("Bipartite", func(t *testing.T) {
-// 		t.Parallel()
+func TestFail(t *testing.T) {
+	t.Parallel()
 
-// 		p := mx.Partition(2)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-// 		var ps []mx.HostSlice
-// 		for i := 0; i < 2; i++ {
-// 			res := sim.Op(p.At(i)).
-// 				Then(mx.Select(func(ctx context.Context, sim mx.Simulation, hs mx.HostSlice) (mx.HostSlice, error) {
-// 					ps = append(ps, hs)
-// 					return hs, nil
-// 				})).
-// 				Must(ctx, hs...)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-// 			require.Len(t, res, n/2)
-// 		}
+	hs := mkHostSlice(ctx, ctrl)
 
-// 		require.Len(t, ps, 2)
+	res, err := mx.Select(mx.Fail(errors.New("test"))).
+		Eval(ctx, hs)
+	require.EqualError(t, err, "test")
+	require.Nil(t, res)
+}
 
-// 		// TODO:  check that the partitions don't overlap
-// 	})
-// }
+func TestPartition(t *testing.T) {
+	t.Parallel()
+	t.Helper()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	hs := mkHostSlice(ctx, ctrl)
+
+	t.Run("Num", func(t *testing.T) {
+		t.Parallel()
+
+		for i := 0; i < n; i++ {
+			require.Equal(t, i, mx.Partition(i).Num())
+		}
+	})
+
+	t.Run("Singletons", func(t *testing.T) {
+		t.Parallel()
+
+		p := mx.Partition(n)
+
+		for i := 0; i < p.Num(); i++ {
+			res := mx.Select(p.Get(i)).Must(ctx, hs)
+			require.Len(t, res, 1)
+			require.Equal(t, hs[i], res[0])
+		}
+	})
+
+	t.Run("Bipartite", func(t *testing.T) {
+		t.Parallel()
+
+		p := mx.Partition(2)
+
+		var ps []mx.Selection
+		for i := 0; i < 2; i++ {
+			res := mx.Select(p.Get(i)).
+				Then(func(_ context.Context, hs mx.Selection) (mx.Selection, error) {
+					ps = append(ps, hs)
+					return hs, nil
+				}).
+				Must(ctx, hs)
+
+			require.Len(t, res, n/2)
+		}
+
+		require.Len(t, ps, 2)
+
+		// TODO:  check that the partitions don't overlap
+	})
+}

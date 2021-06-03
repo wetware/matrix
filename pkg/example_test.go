@@ -1,4 +1,4 @@
-package main_test
+package mx_test
 
 import (
 	"bytes"
@@ -36,8 +36,8 @@ func ExampleSimulation() {
 		}
 	})
 
-	mx.Op(mx.Announce(sim, netsim.SelectAll{}, ns)).
-		Then(mx.Discover(sim, netsim.SelectAll{}, ns)).
+	mx.Go(mx.Announce(sim, netsim.SelectAll{}, ns)).
+		Go(mx.Discover(sim, netsim.SelectAll{}, ns)).
 		MustArgs(ctx, h0, h1)
 
 	s, err := h1.NewStream(ctx, h0.ID(), echo)

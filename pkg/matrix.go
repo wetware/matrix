@@ -74,8 +74,8 @@ func (s Simulation) MustHost(ctx context.Context, opt ...config.Option) host.Hos
 // NewHostSet builds and configures n hosts with identical parameters.
 //
 // See NewHost.
-func (s Simulation) NewHostSet(ctx context.Context, n int, opt ...config.Option) (HostSlice, error) {
-	hs := make(HostSlice, n)
+func (s Simulation) NewHostSet(ctx context.Context, n int, opt ...config.Option) (Selection, error) {
+	hs := make(Selection, n)
 	return hs, hs.Go(func(i int, _ host.Host) (err error) {
 		hs[i], err = s.h.NewHost(ctx, opt)
 		return
@@ -84,7 +84,7 @@ func (s Simulation) NewHostSet(ctx context.Context, n int, opt ...config.Option)
 
 // MustHostSet calls NewHostSet with the supplied parameters and panics if
 // an error is encountered.
-func (s Simulation) MustHostSet(ctx context.Context, n int, opt ...config.Option) HostSlice {
+func (s Simulation) MustHostSet(ctx context.Context, n int, opt ...config.Option) Selection {
 	hs, err := s.NewHostSet(ctx, n, opt...)
 	must(err)
 	return hs
