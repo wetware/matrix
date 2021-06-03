@@ -2,6 +2,7 @@
 
 [![GoDoc](https://godoc.org/github.com/wetware/matrix?status.svg)](https://godoc.org/github.com/wetware/matrix)
 [![](https://img.shields.io/badge/project-libp2p-yellow.svg?style=flat-square)](https://libp2p.io/)
+[![Go](https://github.com/wetware/matrix/actions/workflows/go.yml/badge.svg)](https://github.com/wetware/matrix/actions/workflows/go.yml)
 
 In-process cluster simulation for libp2p.
 
