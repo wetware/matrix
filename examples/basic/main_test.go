@@ -36,9 +36,9 @@ func ExampleSimulation() {
 		}
 	})
 
-	sim.Op(mx.Announce(netsim.SelectAll{}, ns)).
-		Then(mx.Discover(netsim.SelectAll{}, ns)).
-		Must(ctx, h0, h1)
+	mx.Op(mx.Announce(ctx, sim, netsim.SelectAll{}, ns)).
+		Then(mx.Discover(ctx, sim, netsim.SelectAll{}, ns)).
+		MustArgs(h0, h1)
 
 	s, err := h1.NewStream(ctx, h0.ID(), echo)
 	if err != nil {

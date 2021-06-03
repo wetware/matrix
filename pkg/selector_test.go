@@ -1,70 +1,60 @@
 package mx_test
 
-import (
-	"context"
-	"testing"
+// func TestPartition(t *testing.T) {
+// 	t.Parallel()
+// 	t.Helper()
 
-	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/require"
-	"github.com/wetware/matrix/internal/testutil"
-	mx "github.com/wetware/matrix/pkg"
-)
+// 	ctrl := gomock.NewController(t)
+// 	defer ctrl.Finish()
 
-func TestPartition(t *testing.T) {
-	t.Parallel()
-	t.Helper()
+// 	ctx, cancel := context.WithCancel(context.Background())
+// 	defer cancel()
 
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+// 	sim := mx.New(ctx,
+// 		mx.WithClock(testutil.NewClock(ctrl, 0, nil)),
+// 		mx.WithHostFactory(testutil.NewHostFactory(ctrl)))
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+// 	hs := sim.MustHostSet(ctx, n)
 
-	sim := mx.New(ctx,
-		mx.WithClock(testutil.NewClock(ctrl, 0, nil)),
-		mx.WithHostFactory(testutil.NewHostFactory(ctrl)))
+// 	t.Run("Num", func(t *testing.T) {
+// 		t.Parallel()
 
-	hs := sim.MustHostSet(ctx, n)
+// 		for i := 0; i < n; i++ {
+// 			require.Equal(t, i, mx.Partition(i).Num())
+// 		}
+// 	})
 
-	t.Run("Num", func(t *testing.T) {
-		t.Parallel()
+// 	t.Run("Singletons", func(t *testing.T) {
+// 		t.Parallel()
 
-		for i := 0; i < n; i++ {
-			require.Equal(t, i, mx.Partition(i).Num())
-		}
-	})
+// 		p := mx.Partition(n)
 
-	t.Run("Singletons", func(t *testing.T) {
-		t.Parallel()
+// 		for i := 0; i < p.Num(); i++ {
+// 			res := sim.Op(p.At(i)).Must(ctx, hs...)
+// 			require.Len(t, res, 1)
+// 			require.Equal(t, hs[i], res[0])
+// 		}
+// 	})
 
-		p := mx.Partition(n)
+// 	t.Run("Bipartite", func(t *testing.T) {
+// 		t.Parallel()
 
-		for i := 0; i < p.Num(); i++ {
-			res := sim.Op(p.At(i)).Must(ctx, hs...)
-			require.Len(t, res, 1)
-			require.Equal(t, hs[i], res[0])
-		}
-	})
+// 		p := mx.Partition(2)
 
-	t.Run("Bipartite", func(t *testing.T) {
-		t.Parallel()
+// 		var ps []mx.HostSlice
+// 		for i := 0; i < 2; i++ {
+// 			res := sim.Op(p.At(i)).
+// 				Then(mx.Select(func(ctx context.Context, sim mx.Simulation, hs mx.HostSlice) (mx.HostSlice, error) {
+// 					ps = append(ps, hs)
+// 					return hs, nil
+// 				})).
+// 				Must(ctx, hs...)
 
-		p := mx.Partition(2)
+// 			require.Len(t, res, n/2)
+// 		}
 
-		var ps []mx.HostSlice
-		for i := 0; i < 2; i++ {
-			res := sim.Op(p.At(i)).
-				Then(mx.Select(func(ctx context.Context, sim mx.Simulation, hs mx.HostSlice) (mx.HostSlice, error) {
-					ps = append(ps, hs)
-					return hs, nil
-				})).
-				Must(ctx, hs...)
+// 		require.Len(t, ps, 2)
 
-			require.Len(t, res, n/2)
-		}
-
-		require.Len(t, ps, 2)
-
-		// TODO:  check that the partitions don't overlap
-	})
-}
+// 		// TODO:  check that the partitions don't overlap
+// 	})
+// }

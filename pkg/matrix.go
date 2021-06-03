@@ -47,15 +47,6 @@ func New(ctx context.Context, opt ...Option) Simulation {
 
 func (s Simulation) Clock() Clock { return s.c }
 
-func (s Simulation) Op(ops ...OpFunc) Op {
-	var of OpFunc
-	for _, op := range ops {
-		of = of.Then(op)
-	}
-
-	return Op{sim: s, call: of}
-}
-
 // NewHost assembles and creates a new libp2p host that uses the
 // simulation's network.
 //

@@ -1,45 +1,60 @@
 package mx
 
 import (
-	"context"
-
 	"github.com/libp2p/go-libp2p-core/host"
 	"golang.org/x/sync/errgroup"
 )
 
-type OpFunc func(ctx context.Context, sim Simulation, hs HostSlice) (HostSlice, error)
+type OpFunc func(hs HostSlice) (HostSlice, error)
 
-func (fn OpFunc) Then(next OpFunc) OpFunc {
-	if fn == nil {
-		return next
-	}
-
-	return func(ctx context.Context, sim Simulation, hs HostSlice) (_ HostSlice, err error) {
-		if hs, err = fn(ctx, sim, hs); err != nil {
-			return hs, err
+func (f OpFunc) Bind(fn OpFunc) Operation {
+	return Op(func(hs HostSlice) (HostSlice, error) {
+		hs, err := f(hs)
+		if err != nil {
+			return nil, err
 		}
 
-		return next(ctx, sim, hs)
+		return fn(hs)
+	})
+}
+
+type Operation func(Operation) (OpFunc, Operation)
+
+func (op Operation) Bind(fn func(OpFunc) Operation) Operation {
+	return func(prev Operation) (OpFunc, Operation) {
+		f, next := op(prev)
+		return fn(f)(next)
 	}
 }
 
-type Op struct {
-	sim  Simulation
-	call OpFunc
+func (op Operation) Then(f OpFunc) Operation {
+	return op.Bind(func(of OpFunc) Operation {
+		return of.Bind(func(hs HostSlice) (HostSlice, error) {
+			return f(hs)
+		})
+	})
 }
 
-func (op Op) Then(call OpFunc) Op {
-	return Op{sim: op.sim, call: op.call.Then(call)}
+func (op Operation) Eval(hs HostSlice) (out HostSlice, err error) {
+	f, _ := op(Op(Just(nil)))
+	return f(hs)
 }
 
-func (op Op) Must(ctx context.Context, hs ...host.Host) HostSlice {
-	hs, err := op.Call(ctx, hs...)
-	must(err)
+func (op Operation) Must(hs HostSlice) HostSlice {
+	hs, err := op.Eval(hs)
+	if err != nil {
+		panic(err)
+	}
+
 	return hs
 }
 
-func (op Op) Call(ctx context.Context, hs ...host.Host) (HostSlice, error) {
-	return op.call(ctx, op.sim, hs)
+func (op Operation) Args(hs ...host.Host) (HostSlice, error) {
+	return op.Eval(HostSlice(hs))
+}
+
+func (op Operation) MustArgs(hs ...host.Host) HostSlice {
+	return op.Must(HostSlice(hs))
 }
 
 type HostSlice []host.Host

@@ -11,15 +11,31 @@ import (
 )
 
 type (
-	MapFunc    func(ctx context.Context, sim Simulation, i int, h host.Host) error
-	SelectFunc func(ctx context.Context, sim Simulation, hs HostSlice) (HostSlice, error)
+	MapFunc    func(int, host.Host) error
 	FilterFunc func(int, host.Host) bool
 )
 
-// Fail is an operation that always fails with the supplied error.
+func Op(f OpFunc) Operation {
+	return func(op Operation) (OpFunc, Operation) {
+		return f, op
+	}
+}
+
+func Just(hs HostSlice) OpFunc {
+	return func(HostSlice) (HostSlice, error) {
+		return hs, nil
+	}
+}
+
 func Fail(err error) OpFunc {
-	return func(context.Context, Simulation, HostSlice) (HostSlice, error) {
+	return func(HostSlice) (HostSlice, error) {
 		return nil, err
+	}
+}
+
+func Nop() OpFunc {
+	return func(hs HostSlice) (HostSlice, error) {
+		return hs, nil
 	}
 }
 
@@ -37,27 +53,27 @@ func Go(f MapFunc) OpFunc {
 	})
 }
 
-// Select performs an arbitrary operation on the current selection,
-// possibly returning a new selection.
-//
-// HostSlice -> HostSlice
-func Select(f SelectFunc) OpFunc {
-	return func(ctx context.Context, sim Simulation, hs HostSlice) (HostSlice, error) {
-		return f(ctx, sim, hs)
-	}
-}
+// // Select performs an arbitrary operation on the current selection,
+// // possibly returning a new selection.
+// //
+// // HostSlice -> HostSlice
+// func Select(f SelectFunc) OpFunc {
+// 	return func(ctx context.Context, sim Simulation, hs HostSlice) (HostSlice, error) {
+// 		return f(ctx, sim, hs)
+// 	}
+// }
 
-// Filter returns a new selection that contains the elements of the
-// current selection for which f(element) == true.
-func Filter(f FilterFunc) OpFunc {
-	return Select(func(ctx context.Context, sim Simulation, hs HostSlice) (HostSlice, error) {
-		return hs.Filter(f), nil
-	})
-}
+// // Filter returns a new selection that contains the elements of the
+// // current selection for which f(element) == true.
+// func Filter(f FilterFunc) OpFunc {
+// 	return Select(func(ctx context.Context, sim Simulation, hs HostSlice) (HostSlice, error) {
+// 		return hs.Filter(f), nil
+// 	})
+// }
 
 // Announce each host in the current selection using the supplied topology.
-func Announce(t netsim.Topology, ns string, opt ...discovery.Option) OpFunc {
-	return Go(func(ctx context.Context, sim Simulation, i int, h host.Host) error {
+func Announce(ctx context.Context, sim Simulation, t netsim.Topology, ns string, opt ...discovery.Option) OpFunc {
+	return Go(func(i int, h host.Host) error {
 		var d = sim.NewDiscovery(h, t)
 		_, err := d.Advertise(ctx, ns, opt...)
 		return err
@@ -65,8 +81,8 @@ func Announce(t netsim.Topology, ns string, opt ...discovery.Option) OpFunc {
 }
 
 // Discover peers for each host in the current selection using the supplied topology.
-func Discover(t netsim.Topology, ns string, opt ...discovery.Option) OpFunc {
-	return Go(func(ctx context.Context, sim Simulation, i int, h host.Host) (err error) {
+func Discover(ctx context.Context, sim Simulation, t netsim.Topology, ns string, opt ...discovery.Option) OpFunc {
+	return Go(func(i int, h host.Host) (err error) {
 		var (
 			d  = sim.NewDiscovery(h, t)
 			g  errgroup.Group
@@ -93,10 +109,10 @@ func connect(ctx context.Context, h host.Host, info peer.AddrInfo) func() error 
 }
 
 func mapper(f func(hs HostSlice, hf func(MapFunc) func(int, host.Host) error) error) OpFunc {
-	return func(ctx context.Context, sim Simulation, hs HostSlice) (HostSlice, error) {
+	return func(hs HostSlice) (HostSlice, error) {
 		return hs, f(hs, func(mf MapFunc) func(int, host.Host) error {
 			return func(i int, h host.Host) error {
-				return mf(ctx, sim, i, h)
+				return mf(i, h)
 			}
 		})
 	}

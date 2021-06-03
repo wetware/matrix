@@ -9,6 +9,7 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/network"
 	mx "github.com/wetware/matrix/pkg"
+	"github.com/wetware/matrix/pkg/netsim"
 )
 
 const (
@@ -29,11 +30,11 @@ func main() {
 	 an (optional) way of reducing error-checking boilerplate.
 
 	*/
-	h0 := sim.MustHost(ctx)
-	h1 := sim.MustHost(ctx)
 
-	h0 = sim.MustHost(ctx)
+	h0 := sim.MustHost(ctx)
 	h0.SetStreamHandler(echo, handler)
+
+	h1 := sim.MustHost(ctx)
 
 	/*
 	 Matrix provides the Operations API, which allows developers
@@ -42,9 +43,9 @@ func main() {
 	 Here, we're using a simple two-stage pipeline to announce
 	 each peer to the namespace and connect them to each other.
 	*/
-	sim.Op(mx.Announce(nil, ns)).
-		Then(mx.Discover(nil, ns)).
-		Must(ctx, h0, h1)
+	mx.Op(mx.Announce(ctx, sim, netsim.SelectAll{}, ns)).
+		Then(mx.Discover(ctx, sim, netsim.SelectAll{}, ns)).
+		MustArgs(h0, h1)
 
 	s, err := h1.NewStream(ctx, h0.ID(), echo)
 	maybeFatal(err)
