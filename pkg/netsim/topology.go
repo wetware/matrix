@@ -30,11 +30,26 @@ func (t SelectAll) Select(_ context.Context, s Scope, local *peer.AddrInfo, opts
 	return limit(opts, t.load(s, local)), nil
 }
 
-type SelectRing struct{ SelectAll }
+type SelectRing struct {
+	// K specifies the cardinality of each ring node.  For example:
+	//
+	// - K = 1 will create a ring such that each node connects to its
+	//         right-hand neighbor, resulting two connections per node.
+	//
+	// - K = 2 will create a ring such that each node connects to its
+	//         right-hand neighbor AND *its* right-hand neighbor, resulting
+	//         in *four* connections per node.
+	K int
+	SelectAll
+}
 
 func (t SelectRing) Select(ctx context.Context, s Scope, local *peer.AddrInfo, opts *discovery.Options) (InfoSlice, error) {
+	if t.K == 0 {
+		t.K = 1
+	}
+
 	peers := t.load(s, local)
-	if len(peers) == 0 {
+	if len(peers) <= t.K {
 		return peers, nil
 	}
 
@@ -44,10 +59,15 @@ func (t SelectRing) Select(ctx context.Context, s Scope, local *peer.AddrInfo, o
 
 	// largest peer?
 	if len(gt) == 0 {
-		return peers[0:1], nil // 'peers' is already sorted
+		return peers[0:t.K], nil // 'peers' is already sorted
 	}
 
-	return gt[0:1], nil
+	wrap := t.K - len(gt)
+	if wrap <= 0 {
+		return gt[0:t.K], nil
+	}
+
+	return append(gt, peers[:wrap]...), nil
 }
 
 type SelectRandom struct {
