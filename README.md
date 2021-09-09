@@ -114,7 +114,3 @@ mx.Topology(sim, netsim.SelectRing{}, ns)).
 - [@aratz-lasa](https://github.com/aratz-lasa)
 
 ★ Project Lead
-
-## License
-
-Dual-licensed: [MIT](https://github.com/testground/testground/blob/master/LICENSE-MIT), [Apache Software License v2](https://github.com/testground/testground/blob/master/LICENSE-APACHE), by way of the [Permissive License Stack](https://protocol.ai/blog/announcing-the-permissive-license-stack/).
