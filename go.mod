@@ -7,8 +7,8 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/jbenet/goprocess v0.1.4
 	github.com/libp2p/go-libp2p v0.15.0
-	github.com/libp2p/go-libp2p-core v0.9.0
-	github.com/lthibault/go-libp2p-inproc-transport v1.0.0-alpha.14
+	github.com/libp2p/go-libp2p-core v0.10.0
+	github.com/lthibault/go-libp2p-inproc-transport v0.0.1-alpha.6
 	github.com/lthibault/util v0.0.10
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multiaddr v0.4.0
