@@ -120,12 +120,12 @@ func (c *Clock) getExpire(expire time.Duration, tick uint64) time.Duration {
 	return expire/c.accuracy + time.Duration(tick)
 }
 
-func (c *Clock) Ticker(userExpire time.Duration, callback func()) (cancel func()) {
+func (c *Clock) Ticker(d time.Duration, callback func()) (cancel func()) {
 	tick := atomic.LoadUint64(&c.tick)
 
 	node := &timeNode{
-		userExpire: userExpire,
-		expire:     uint64(c.getExpire(userExpire, tick)),
+		userExpire: d,
+		expire:     uint64(c.getExpire(d, tick)),
 		callback:   callback,
 		isSchedule: true,
 	}
