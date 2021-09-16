@@ -3,7 +3,6 @@ package clock
 import (
 	"context"
 	"math"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -31,7 +30,7 @@ func TestTicker(t *testing.T) {
 		c.Advance(t0.Add(time.Millisecond * 1010))
 
 		assert.Eventually(t, func() bool {
-			return ctr.Num() == 10
+			return ctr.Int() == 10
 		}, time.Millisecond*100, time.Millisecond*10)
 	})
 
@@ -49,18 +48,18 @@ func TestTicker(t *testing.T) {
 		c.Advance(t0.Add(time.Microsecond * 1010))
 
 		assert.Eventually(t, func() bool {
-			return ctr.Num() == 10
+			return ctr.Int() == 10
 		}, time.Millisecond*100, time.Millisecond*10)
 	})
 }
 
-func Test_maxVal(t *testing.T) {
+func TestMaxVal(t *testing.T) {
 	t.Parallel()
 
 	assert.Equal(t, maxVal(), uint64(math.MaxUint32))
 }
 
-func Test_LevelMax(t *testing.T) {
+func TestLevelMax(t *testing.T) {
 	t.Parallel()
 
 	assert.Equal(t, levelMax(1), uint64(1<<(nearShift+levelShift)))
@@ -69,14 +68,14 @@ func Test_LevelMax(t *testing.T) {
 	assert.Equal(t, levelMax(4), uint64(1<<(nearShift+4*levelShift)))
 }
 
-func Test_GenVersion(t *testing.T) {
+func TestGenVersion(t *testing.T) {
 	t.Parallel()
 
 	assert.Equal(t, genVersionHeight(1, 0xf), uint64(0x0001000f00000000))
 	assert.Equal(t, genVersionHeight(1, 64), uint64(0x0001004000000000))
 }
 
-func Test_hour(t *testing.T) {
+func TestHour(t *testing.T) {
 	t.Parallel()
 
 	c := New(incr)
@@ -100,24 +99,22 @@ func Test_hour(t *testing.T) {
 	assert.True(t, *testHour)
 }
 
-func Test_ScheduleFunc_5s(t *testing.T) {
+func TestTicker_5s(t *testing.T) {
 	t.Parallel()
 
-	c := New(incr)
+	const total = 1000
 
-	var first5 int32
+	var (
+		c        = New(incr)
+		first5   syncutil.Ctr
+		testTime = time.Second * 5
+	)
+
 	ctx, cancel := context.WithCancel(context.Background())
-
-	const total = int32(1000)
-
-	testTime := time.Second * 5
-
 	c.Ticker(testTime, func() {
-		atomic.AddInt32(&first5, 1)
-		if atomic.LoadInt32(&first5) == total {
+		if first5.Incr() == total {
 			cancel()
 		}
-
 	})
 
 	expire := c.getExpire(testTime*time.Duration(total), 0)
@@ -130,26 +127,25 @@ func Test_ScheduleFunc_5s(t *testing.T) {
 	case <-time.After(time.Second / 100):
 	}
 
-	assert.Equal(t, total, first5)
+	assert.Equal(t, total, first5.Int())
 }
 
-func Test_ScheduleFunc_hour(t *testing.T) {
+func TestTicker_hour(t *testing.T) {
 	t.Parallel()
 
-	c := New(incr)
+	const total = 100
 
-	var first5 int32
+	var (
+		c        = New(incr)
+		first5   syncutil.Ctr
+		testTime = time.Hour
+	)
+
 	ctx, cancel := context.WithCancel(context.Background())
-
-	const total = int32(100)
-	testTime := time.Hour
-
 	c.Ticker(testTime, func() {
-		atomic.AddInt32(&first5, 1)
-		if atomic.LoadInt32(&first5) == total {
+		if first5.Incr() == total {
 			cancel()
 		}
-
 	})
 
 	expire := c.getExpire(testTime*time.Duration(total), 0)
@@ -162,26 +158,25 @@ func Test_ScheduleFunc_hour(t *testing.T) {
 	case <-time.After(time.Second / 100):
 	}
 
-	assert.Equal(t, total, first5)
+	assert.Equal(t, total, first5.Int())
 }
 
-func Test_ScheduleFunc_day(t *testing.T) {
+func TestTicker_day(t *testing.T) {
 	t.Parallel()
 
-	c := New(incr)
+	const total = 10
 
-	var first5 int32
+	var (
+		c        = New(incr)
+		first5   syncutil.Ctr
+		testTime = time.Hour * 24
+	)
+
 	ctx, cancel := context.WithCancel(context.Background())
-
-	const total = int32(10)
-	testTime := time.Hour * 24
-
 	c.Ticker(testTime, func() {
-		atomic.AddInt32(&first5, 1)
-		if atomic.LoadInt32(&first5) == total {
+		if first5.Incr() == total {
 			cancel()
 		}
-
 	})
 
 	expire := c.getExpire(testTime*time.Duration(total), 0)
@@ -194,7 +189,7 @@ func Test_ScheduleFunc_day(t *testing.T) {
 	case <-time.After(time.Second / 100):
 	}
 
-	assert.Equal(t, total, first5)
+	assert.Equal(t, total, first5.Int())
 }
 
 func TestAfter(t *testing.T) {
@@ -215,7 +210,7 @@ func TestAfter(t *testing.T) {
 		c.Advance(t0.Add(time.Second))
 
 		assert.Eventually(t, func() bool {
-			return ctr.Num() == 1
+			return ctr.Int() == 1
 		}, time.Millisecond*100, time.Millisecond*10)
 	})
 
@@ -233,52 +228,56 @@ func TestAfter(t *testing.T) {
 		c.Advance(t0.Add(time.Second))
 
 		assert.Eventually(t, func() bool {
-			return ctr.Num() == 1
+			return ctr.Int() == 1
 		}, time.Millisecond*100, time.Millisecond*10)
 	})
 }
 
-func Test_Node_Stop_1(t *testing.T) {
+func TestNodeStop_1(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	c := New()
+	const d = time.Millisecond * 10
 
-	count := uint32(0)
-	stop := c.After(time.Millisecond*10, func() {
-		atomic.AddUint32(&count, 1)
-	})
+	var (
+		c     = New()
+		count syncutil.Ctr
+	)
+
+	stop := c.After(d, func() { count.Incr() })
 
 	go func() {
-		time.Sleep(time.Millisecond * 30)
+		time.Sleep(d * 2)
 		stop()
 		cancel()
 	}()
 
-	run(ctx, c, time.Millisecond*10)
-	assert.NotEqual(t, count, 1)
+	run(ctx, c, d/2)
+	assert.NotEqual(t, count.Int(), 1)
 }
 
-func Test_Node_Stop(t *testing.T) {
+func TestNodeStop(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	c := New()
+	const d = time.Millisecond * 100
 
-	count := uint32(0)
-	stop := c.After(time.Millisecond*100, func() {
-		atomic.AddUint32(&count, 1)
-	})
+	var (
+		c     = New()
+		count syncutil.Ctr
+	)
+
+	stop := c.After(d, func() { count.Incr() })
 	stop()
 	go func() {
-		time.Sleep(time.Millisecond * 200)
+		time.Sleep(d * 2)
 		cancel()
 	}()
 
-	run(ctx, c, time.Millisecond*10)
+	run(ctx, c, d/2)
 	assert.NotEqual(t, count, 1)
 }
 

@@ -6,6 +6,7 @@ import (
 	"unsafe"
 
 	"github.com/antlabs/stl/list"
+	syncutil "github.com/lthibault/util/sync"
 )
 
 const (
@@ -21,7 +22,7 @@ const (
 
 type Clock struct {
 	// Must come first.  See:  https://golang.org/pkg/sync/atomic/#pkg-note-BUG
-	tick uint64 // monotonically increasing
+	tick syncutil.Ctr64 // monotonically increasing
 
 	t1     [nearSize]*timepoint     // 256 slots
 	t2Tot5 [4][levelSize]*timepoint // 4x64 time-scales
@@ -62,7 +63,7 @@ func levelMax(index int) uint64 {
 func (c *Clock) Accuracy() time.Duration { return c.accuracy }
 
 func (c *Clock) index(n int) uint64 {
-	return (c.tick >> (nearShift + levelShift*n)) & levelMask
+	return (uint64(c.tick) >> (nearShift + levelShift*n)) & levelMask
 }
 
 func (c *Clock) add(node *timeNode, tick uint64) *timeNode {
@@ -106,7 +107,7 @@ func (c *Clock) add(node *timeNode, tick uint64) *timeNode {
 }
 
 func (c *Clock) After(d time.Duration, callback func()) (cancel func()) {
-	tick := atomic.LoadUint64(&c.tick)
+	tick := c.tick.Load()
 
 	node := &timeNode{
 		expire:   uint64(d/c.accuracy + time.Duration(tick)),
@@ -121,7 +122,7 @@ func (c *Clock) getExpire(expire time.Duration, tick uint64) time.Duration {
 }
 
 func (c *Clock) Ticker(d time.Duration, callback func()) (cancel func()) {
-	tick := atomic.LoadUint64(&c.tick)
+	tick := c.tick.Load()
 
 	node := &timeNode{
 		userExpire: d,
@@ -154,7 +155,7 @@ func (c *Clock) cascade(levelIndex int, index int) {
 	offset := unsafe.Offsetof(tmp.Head)
 	tmp.ForEachSafe(func(pos *list.Head) {
 		node := (*timeNode)(pos.Entry(offset))
-		c.add(node, atomic.LoadUint64(&c.tick))
+		c.add(node, c.tick.Load())
 	})
 
 }
@@ -184,7 +185,7 @@ func (c *Clock) moveAndExec() {
 		}
 	}
 
-	atomic.AddUint64(&c.tick, 1)
+	c.tick.Incr()
 
 	c.t1[index].Lock()
 	if c.t1[index].Len() == 0 {
@@ -212,7 +213,7 @@ func (c *Clock) moveAndExec() {
 		go val.callback()
 
 		if val.isSchedule {
-			tick := c.tick
+			tick := uint64(c.tick)
 			// The tick must be subtracted by 1.
 			// The current callback is called and already contains a time slice.
 			// If you don’t subtract this time slice, every time there is one more time slice,
