@@ -45,7 +45,7 @@ func NewClock(ctrl *gomock.Controller, accuracy time.Duration, onTick func(t tim
 	}
 
 	c.EXPECT().
-		Accuracy().
+		Timestep().
 		Return(accuracy).
 		AnyTimes()
 

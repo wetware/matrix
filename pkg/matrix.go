@@ -12,9 +12,20 @@ import (
 )
 
 type Clock interface {
-	Accuracy() time.Duration
-	After(d time.Duration, callback func()) (cancel func())
-	Ticker(userExpire time.Duration, callback func()) (cancel func())
+	// Timestep returns the increment with which the clock is
+	// advanced at each time-step.  This is effectively the
+	// temporal precision with which events are simulated.
+	Timestep() time.Duration
+
+	// After is analogous to time.After in the Go standard library.
+	// The supplied function will be called exactly once after the
+	// specified duration has elapsed, unless 'cancel' is called.
+	After(time.Duration, func()) (cancel func())
+
+	// Ticker is analogous to time.NewTicker in the Go standard
+	// library.  The supplied function will be called periodically,
+	// until 'cancel' is called.
+	Ticker(time.Duration, func()) (cancel func())
 }
 
 type ClockController interface {
@@ -107,7 +118,7 @@ func (s Simulation) NewDiscovery(h host.Host, t netsim.Topology) *netsim.Discove
 }
 
 func (s Simulation) run(ctx context.Context) {
-	ticker := time.NewTicker(s.c.Accuracy())
+	ticker := time.NewTicker(s.c.Timestep())
 	defer ticker.Stop()
 
 	for {

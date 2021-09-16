@@ -14,7 +14,6 @@ import (
 	mock_mx "github.com/wetware/matrix/internal/mock/pkg"
 	"github.com/wetware/matrix/internal/testutil"
 	mx "github.com/wetware/matrix/pkg"
-	"github.com/wetware/matrix/pkg/clock"
 )
 
 const n = 10
@@ -77,11 +76,4 @@ func TestSimulation(t *testing.T) {
 			})
 		})
 	})
-
-	t.Run("Clock", func(t *testing.T) {
-		t.Parallel()
-
-		require.Equal(t, sim.Clock().Accuracy(), clock.DefaultAccuracy)
-	})
-
 }

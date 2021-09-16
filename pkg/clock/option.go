@@ -2,22 +2,34 @@ package clock
 
 import "time"
 
+const defaultTimeStep = time.Millisecond
+
 type Option func(c *Clock)
 
-func WithAccuracy(d time.Duration) Option {
+// WithTick sets the time-step for thes simulation clock.
+// This is effectively precision with which the resulting
+// clock is able to measure time.  A smaller time-step is
+// more CPU-efficient.  If d < 0, defaults to millisecond
+// precision.
+//
+// There is a trade-off between performance and precision
+// such that a larger tick interval will reduce the load
+// on the CPU when there are many events in the clock, at
+// the expense of a
+func WithTick(d time.Duration) Option {
 	if d < 0 {
-		d = DefaultAccuracy
+		d = defaultTimeStep
 	}
 
 	return func(c *Clock) {
-		c.accuracy = d
+		c.step = d
 		c.ticks = ticker(d)
 	}
 }
 
 func withDefault(opt []Option) []Option {
 	return append([]Option{
-		WithAccuracy(-1),
+		WithTick(-1),
 	}, opt...)
 }
 

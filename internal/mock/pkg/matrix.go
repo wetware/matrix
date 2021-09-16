@@ -37,20 +37,6 @@ func (m *MockClockController) EXPECT() *MockClockControllerMockRecorder {
 	return m.recorder
 }
 
-// Accuracy mocks base method.
-func (m *MockClockController) Accuracy() time.Duration {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Accuracy")
-	ret0, _ := ret[0].(time.Duration)
-	return ret0
-}
-
-// Accuracy indicates an expected call of Accuracy.
-func (mr *MockClockControllerMockRecorder) Accuracy() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Accuracy", reflect.TypeOf((*MockClockController)(nil).Accuracy))
-}
-
 // Advance mocks base method.
 func (m *MockClockController) Advance(arg0 time.Time) {
 	m.ctrl.T.Helper()
@@ -89,6 +75,20 @@ func (m *MockClockController) Ticker(arg0 time.Duration, arg1 func()) func() {
 func (mr *MockClockControllerMockRecorder) Ticker(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ticker", reflect.TypeOf((*MockClockController)(nil).Ticker), arg0, arg1)
+}
+
+// Timestep mocks base method.
+func (m *MockClockController) Timestep() time.Duration {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Timestep")
+	ret0, _ := ret[0].(time.Duration)
+	return ret0
+}
+
+// Timestep indicates an expected call of Timestep.
+func (mr *MockClockControllerMockRecorder) Timestep() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Timestep", reflect.TypeOf((*MockClockController)(nil).Timestep))
 }
 
 // MockHostFactory is a mock of HostFactory interface.

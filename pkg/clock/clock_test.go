@@ -12,6 +12,17 @@ import (
 
 var t0 = time.Date(2021, 04, 9, 8, 0, 0, 0, time.UTC)
 
+func TestTimeStep(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, defaultTimeStep,
+		New().Timestep(), "wrong default time step")
+
+	assert.Equal(t, time.Microsecond,
+		New(WithTick(time.Microsecond)).Timestep(),
+		"time step does not match option parameter")
+}
+
 func TestTicker(t *testing.T) {
 	t.Parallel()
 	t.Helper()
@@ -37,7 +48,7 @@ func TestTicker(t *testing.T) {
 	t.Run("Accuracy=10µs", func(t *testing.T) {
 		t.Parallel()
 
-		c := New(WithAccuracy(time.Microsecond * 10))
+		c := New(WithTick(time.Microsecond * 10))
 
 		var ctr syncutil.Ctr
 		c.Ticker(time.Microsecond*100, func() {
@@ -217,7 +228,7 @@ func TestAfter(t *testing.T) {
 	t.Run("Accuracy=µs", func(t *testing.T) {
 		t.Parallel()
 
-		c := New(WithAccuracy(time.Microsecond * 10))
+		c := New(WithTick(time.Microsecond * 10))
 
 		var ctr syncutil.Ctr
 		c.After(time.Microsecond*100, func() {
@@ -302,7 +313,7 @@ func run(ctx context.Context, c *Clock, d time.Duration) {
 }
 
 func incr(c *Clock) {
-	WithAccuracy(-1)(c)
+	WithTick(-1)(c)
 	c.ticks = func(time.Time) time.Duration {
 		return c.curTimePoint + 1
 	}

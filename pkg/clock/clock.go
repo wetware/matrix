@@ -10,8 +10,6 @@ import (
 )
 
 const (
-	DefaultAccuracy = time.Millisecond * 10
-
 	nearShift  = 8
 	nearSize   = 1 << nearShift
 	levelShift = 6
@@ -27,7 +25,7 @@ type Clock struct {
 	t1     [nearSize]*timepoint     // 256 slots
 	t2Tot5 [4][levelSize]*timepoint // 4x64 time-scales
 
-	accuracy     time.Duration
+	step         time.Duration
 	ticks        func(time.Time) time.Duration
 	curTimePoint time.Duration
 }
@@ -60,7 +58,7 @@ func levelMax(index int) uint64 {
 	return 1 << (nearShift + index*levelShift)
 }
 
-func (c *Clock) Accuracy() time.Duration { return c.accuracy }
+func (c *Clock) Timestep() time.Duration { return c.step }
 
 func (c *Clock) index(n int) uint64 {
 	return (uint64(c.tick) >> (nearShift + levelShift*n)) & levelMask
@@ -110,7 +108,7 @@ func (c *Clock) After(d time.Duration, callback func()) (cancel func()) {
 	tick := c.tick.Load()
 
 	node := &timeNode{
-		expire:   uint64(d/c.accuracy + time.Duration(tick)),
+		expire:   uint64(d/c.step + time.Duration(tick)),
 		callback: callback,
 	}
 
@@ -118,7 +116,7 @@ func (c *Clock) After(d time.Duration, callback func()) (cancel func()) {
 }
 
 func (c *Clock) getExpire(expire time.Duration, tick uint64) time.Duration {
-	return expire/c.accuracy + time.Duration(tick)
+	return expire/c.step + time.Duration(tick)
 }
 
 func (c *Clock) Ticker(d time.Duration, callback func()) (cancel func()) {
