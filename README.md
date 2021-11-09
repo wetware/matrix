@@ -98,7 +98,7 @@ h1 := sim.MustHost(ctx)
     Note that the Operations API is orthogonal to simulation.
     You do not have to use operations if you don't like them.
 */
-mx.Topology(sim, netsim.SelectRing{}, ns)).
+mx.Topology(sim, netsim.SelectRing{}, ns).
 		MustArgs(ctx, h0, h1)
 
 /*
